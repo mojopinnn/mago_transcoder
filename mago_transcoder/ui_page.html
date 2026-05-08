@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>MAGO TRANSCODER</title>
+<style>
+:root{--bg:#0b0d11;--panel:#13171c;--card:#1a1f26;--border:rgba(255,255,255,0.06);--accent:#3b82f6;--accent2:#6366f1;--text:#d1d5db;--dim:#6b7280;--success:#10b981;--error:#ef4444;--warn:#f59e0b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;min-height:100vh;padding:24px}
+.wrap{max-width:1060px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.header{display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff}
+.sec-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:var(--accent);margin-bottom:8px}
+.shot-list{display:flex;flex-direction:column;gap:8px}
+.shot-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center;cursor:pointer}
+.shot-card.selected{border-color:rgba(59,130,246,.45);background:rgba(59,130,246,.05)}
+.shot-thumb{width:72px;height:44px;border-radius:7px;background:rgba(255,255,255,.04);object-fit:cover;font-size:8px;display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.shot-name{font-weight:700;font-size:14px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shot-meta{font-size:11px;color:var(--dim);margin-top:3px}
+.shot-path{font-size:10px;color:#374151;margin-top:2px;font-family:monospace;overflow:hidden;text-overflow:ellipsis}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px}
+label.fl{font-size:10px;color:var(--dim);display:block;margin-bottom:6px;text-transform:uppercase}
+input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-size:13px;font-family:monospace}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.preset-row{display:flex;gap:6px}
+.preset-btn{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--border);color:var(--dim);padding:8px;border-radius:8px;cursor:pointer;font-size:11px}
+.tab-row{display:flex;gap:6px;flex-wrap:wrap}
+.fmt-tab{background:rgba(255,255,255,.03);border:1px solid var(--border);color:var(--dim);padding:5px 14px;border-radius:20px;font-size:11px;cursor:pointer}
+.fmt-tab.active{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.4);color:#fff}
+.fmt-opts{display:none;flex-direction:column;gap:12px}
+.fmt-opts.on{display:flex}
+.bit-group{display:flex;gap:6px;flex-wrap:wrap}
+.bit-btn{flex:1;min-width:60px;background:rgba(255,255,255,.03);border:1px solid var(--border);padding:9px;border-radius:8px;font-size:11px;cursor:pointer;text-align:center}
+.bit-btn.active{background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.4);color:#a5b4fc}
+.fmt-summary{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:#93c5fd}
+.run-btn{width:100%;padding:16px;border:none;border-radius:12px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.run-btn.cancel{background:linear-gradient(135deg,#ef4444,#b91c1c)}
+.console{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.console-hdr{padding:10px 18px;background:rgba(0,0,0,.3);border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+#log-area{padding:16px;min-height:180px;max-height:300px;overflow-y:auto;font-family:Consolas,monospace;font-size:11px;color:#94a3b8}
+.log-success{color:var(--success);font-weight:700}.log-info{color:var(--accent)}.log-warn{color:var(--warn)}.log-error{color:var(--error)}.log-cmd{color:#a78bfa}.log-dim{color:#374151;font-style:italic}
+.cs-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ocio-path{font-size:10px;color:#374151;font-family:monospace;margin-top:4px}
+.status-pill{font-size:11px;color:var(--success);font-weight:600}
+.no-shots{color:var(--dim);font-size:12px;font-style:italic;padding:14px}
+.badge{font-size:10px;padding:2px 8px;border-radius:20px;margin-left:6px;border:1px solid rgba(59,130,246,.25);color:#60a5fa}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">M</div>
+      <div>
+        <div style="font-size:15px;font-weight:800;color:#fff">MAGO TRANSCODER</div>
+        <div style="font-size:10px;color:var(--dim)">SHOTGRID AMI · NUKE</div>
+      </div>
+    </div>
+    <div class="status-pill">● READY</div>
+  </div>
+
+  <div>
+    <div class="sec-label">SHOTGRID TARGET</div>
+    <div class="shot-list" id="shot-list">
+      <div class="no-shots">AMI에서 선택하거나 샷 이름을 수동 입력하세요.</div>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="sec-label">FRAME RANGE</div>
+      <div class="fg2">
+        <div><label class="fl">Shot Name</label><input type="text" id="inp-shot" placeholder="ABC_0010"></div>
+        <div><label class="fl">Source Path</label><input type="text" id="inp-source" placeholder="/path/####.exr"></div>
+      </div>
+      <div class="fg2">
+        <div><label class="fl">Frame In</label><input type="text" id="inp-frame-in" placeholder="1001"></div>
+        <div><label class="fl">Frame Out</label><input type="text" id="inp-frame-out" placeholder="1100"></div>
+      </div>
+      <div class="preset-row">
+        <button class="preset-btn" type="button" onclick="setSingleFrame()">현재 프레임만</button>
+        <button class="preset-btn" type="button" onclick="setFullRange()">전체 범위</button>
+      </div>
+      <div><label class="fl">Output Path (선택)</label><input type="text" id="inp-output" placeholder="/out/####.exr"></div>
+    </div>
+    <div class="panel">
+      <div class="sec-label">OUTPUT FORMAT</div>
+      <div><label class="fl">File Format</label><div class="tab-row" id="fmt-tabs"></div></div>
+      <div id="fmt-options-area"></div>
+      <div class="fmt-summary" id="fmt-summary-val">—</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="sec-label">COLOR (OCIO)</div>
+    <div class="cs-row">
+      <div><label class="fl">Input</label><select id="sel-cs-in"></select></div>
+      <div><label class="fl">Output</label><select id="sel-cs-out"></select></div>
+    </div>
+    <div class="ocio-path" id="ocio-path-display"></div>
+  </div>
+
+  <button class="run-btn" id="run-btn" type="button" onclick="handleRun()">TRIGGER NUKE RENDER</button>
+
+  <div class="console">
+    <div class="console-hdr">
+      <span style="font-size:10px;color:var(--accent);font-weight:700">LIVE CONSOLE</span>
+      <span id="console-status" style="font-size:10px;color:var(--dim)">IDLE</span>
+    </div>
+    <div id="log-area"><div class="log-dim">// 연결 대기… 브라우저를 닫으면 작업이 취소됩니다.</div></div>
+  </div>
+</div>
+
+<script>
+const state = { shots: [], selectedIdx: 0, format: 'exr', abortCtrl: null };
+const formatDefs = __FORMAT_DEFS_JSON__;
+const colorspaces = __COLORSPACES_JSON__;
+const INITIAL_IDS = __INITIAL_IDS__;
+const INITIAL_NAMES = __INITIAL_NAMES__;
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildFormatTabs();
+  buildColorspaceSelects();
+  fetchShotData();
+  document.getElementById('ocio-path-display').textContent = 'OCIO: __OCIO_PATH__';
+});
+
+async function fetchShotData() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const ids = INITIAL_IDS || urlParams.get('ids') || '';
+  const names = INITIAL_NAMES || urlParams.get('names') || '';
+  if (!ids && !names) return;
+  try {
+    const res = await fetch('/api/sg-info?' + new URLSearchParams({ ids, names }));
+    const data = await res.json();
+    if (data.shots && data.shots.length) {
+      state.shots = data.shots;
+      renderShotList();
+      selectShot(0);
+    }
+  } catch (e) { log('ShotGrid 로드 실패: ' + e.message, 'error'); }
+}
+
+function renderShotList() {
+  const el = document.getElementById('shot-list');
+  if (!state.shots.length) return;
+  el.innerHTML = '';
+  state.shots.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'shot-card' + (i === state.selectedIdx ? ' selected' : '');
+    card.onclick = () => selectShot(i);
+    const thumb = s.thumbnail
+      ? `<img class="shot-thumb" src="${s.thumbnail}" alt="">`
+      : `<div class="shot-thumb">${s.shot_name || ''}</div>`;
+    card.innerHTML = thumb + `<div><div class="shot-row1" style="display:flex;justify-content:space-between;gap:8px">
+      <span class="shot-name">${s.shot_name || s.version_name}</span>
+      ${s.project ? `<span class="badge">${s.project}</span>` : ''}</div>
+      <div class="shot-meta">${s.version_name} · ${s.frame_in}–${s.frame_out}</div>
+      <div class="shot-path">${s.source_path || '(소스 없음)'}</div></div>`;
+    el.appendChild(card);
+  });
+}
+
+function selectShot(idx) {
+  state.selectedIdx = idx;
+  const s = state.shots[idx];
+  document.getElementById('inp-shot').value = s.shot_name || s.version_name;
+  document.getElementById('inp-frame-in').value = s.frame_in;
+  document.getElementById('inp-frame-out').value = s.frame_out;
+  document.getElementById('inp-source').value = s.source_path || '';
+  document.querySelectorAll('.shot-card').forEach((c, i) => c.classList.toggle('selected', i === idx));
+}
+
+function buildFormatTabs() {
+  const tabRow = document.getElementById('fmt-tabs');
+  const optArea = document.getElementById('fmt-options-area');
+  Object.entries(formatDefs).forEach(([fmtId, def], idx) => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'fmt-tab' + (idx === 0 ? ' active' : '');
+    tab.textContent = def.label;
+    tab.dataset.fmt = fmtId;
+    tab.onclick = () => switchFormat(fmtId);
+    tabRow.appendChild(tab);
+
+    const block = document.createElement('div');
+    block.className = 'fmt-opts' + (idx === 0 ? ' on' : '');
+    block.id = 'fmt-' + fmtId;
+    const codecLabel = (fmtId === 'mov') ? 'Codec' : 'Compression';
+    const codecHtml = `<div><label class="fl">${codecLabel}</label>
+      <select id="sel-codec-${fmtId}" onchange="updateFmtSummary()">
+      ${def.codecs.map(c => `<option value="${c.id}" ${c.id===def.default_codec?'selected':''}>${c.label}</option>`).join('')}
+      </select></div>`;
+    const bitBtns = def.bitdepths.map(b =>
+      `<button type="button" class="bit-btn${b.id===def.default_bitdepth?' active':''}" data-fmt="${fmtId}" data-bit="${b.id}" onclick="selectBit('${fmtId}','${b.id}',this)">${b.label}</button>`).join('');
+    block.innerHTML = codecHtml + `<div><label class="fl">Bit Depth</label>
+      <div class="bit-group" id="bits-${fmtId}">${bitBtns}</div>
+      <input type="hidden" id="sel-bits-${fmtId}" value="${def.default_bitdepth}"></div>`;
+    optArea.appendChild(block);
+  });
+  state.format = Object.keys(formatDefs)[0];
+  updateFmtSummary();
+}
+
+function selectBit(fmtId, bitId, el) {
+  document.querySelectorAll('#bits-' + fmtId + ' .bit-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('sel-bits-' + fmtId).value = bitId;
+  updateFmtSummary();
+}
+
+function switchFormat(fmtId) {
+  state.format = fmtId;
+  document.querySelectorAll('.fmt-tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === fmtId));
+  document.querySelectorAll('.fmt-opts').forEach(b => b.classList.toggle('on', b.id === 'fmt-' + fmtId));
+  updateFmtSummary();
+}
+
+function updateFmtSummary() {
+  const fmt = state.format;
+  const def = formatDefs[fmt];
+  const codecEl = document.getElementById('sel-codec-' + fmt);
+  const bitEl = document.getElementById('sel-bits-' + fmt);
+  if (!def || !codecEl || !bitEl) return;
+  const codecLabel = def.codecs.find(c => c.id === codecEl.value)?.label || codecEl.value;
+  const bitLabel = def.bitdepths.find(b => b.id === bitEl.value)?.label || bitEl.value;
+  document.getElementById('fmt-summary-val').textContent = `${def.label} · ${codecLabel} · ${bitLabel}`;
+}
+
+function buildColorspaceSelects() {
+  ['sel-cs-in', 'sel-cs-out'].forEach((selId, idx) => {
+    const sel = document.getElementById(selId);
+    colorspaces.forEach(cs => {
+      const opt = document.createElement('option');
+      opt.value = cs; opt.textContent = cs;
+      if (idx === 0 && cs.toLowerCase().includes('linear')) opt.selected = true;
+      if (idx === 1 && cs.toLowerCase() === 'srgb') opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function setSingleFrame() {
+  const fin = document.getElementById('inp-frame-in').value || '1001';
+  document.getElementById('inp-frame-out').value = fin;
+}
+function setFullRange() {
+  if (state.shots.length) {
+    const s = state.shots[state.selectedIdx];
+    document.getElementById('inp-frame-in').value = s.frame_in;
+    document.getElementById('inp-frame-out').value = s.frame_out;
+  }
+}
+
+async function handleRun() {
+  const btn = document.getElementById('run-btn');
+  if (state.abortCtrl) {
+    log('중단 요청…', 'warn');
+    state.abortCtrl.abort();
+    return;
+  }
+  const fmt = state.format;
+  const codec = document.getElementById('sel-codec-' + fmt)?.value || '';
+  const bitdepth = document.getElementById('sel-bits-' + fmt)?.value || '';
+  const csIn = document.getElementById('sel-cs-in').value;
+  const csOut = document.getElementById('sel-cs-out').value;
+  const frameIn = document.getElementById('inp-frame-in').value || '1001';
+  const frameOut = document.getElementById('inp-frame-out').value || frameIn;
+  const shotName = document.getElementById('inp-shot').value || 'Manual';
+  const srcPath = document.getElementById('inp-source').value || '';
+  const outPath = document.getElementById('inp-output').value || '';
+  const taskId = 't_' + Date.now();
+  const frames = frameIn === frameOut ? frameIn : `${frameIn}-${frameOut}`;
+
+  document.getElementById('log-area').innerHTML = '';
+  document.getElementById('console-status').textContent = '● RUNNING';
+  btn.textContent = 'CANCEL PROCESS';
+  btn.classList.add('cancel');
+  state.abortCtrl = new AbortController();
+
+  log(`시작 → ${shotName} | ${frames} | ${fmt.toUpperCase()}`, 'info');
+  log(`컬러: ${csIn} → ${csOut}`, 'info');
+
+  try {
+    const res = await fetch('/api/render', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        shot_name: shotName, frames, format: fmt, codec, bitdepth,
+        colorspace_in: csIn, colorspace: csOut,
+        source_path: srcPath, output_path: outPath, task_id: taskId
+      }),
+      signal: state.abortCtrl.signal
+    });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      decoder.decode(value, { stream: true }).split('\n\n').forEach(chunk => {
+        if (!chunk.startsWith('data: ')) return;
+        try {
+          const { log: msg } = JSON.parse(chunk.slice(6));
+          const l = msg.toLowerCase();
+          if (l.includes('[success]')) log(msg, 'success');
+          else if (l.includes('[failed]') || l.includes('[error]')) log(msg, 'error');
+          else if (l.includes('[system]')) log(msg, 'warn');
+          else if (l.includes('[cmd]')) log(msg, 'cmd');
+          else log(msg);
+        } catch (_) {}
+      });
+    }
+  } catch (err) {
+    log(err.name === 'AbortError' ? '취소됨.' : ('오류: ' + err.message), 'error');
+  } finally {
+    state.abortCtrl = null;
+    btn.textContent = 'TRIGGER NUKE RENDER';
+    btn.classList.remove('cancel');
+    document.getElementById('console-status').textContent = 'IDLE';
+  }
+}
+
+function log(msg, type = '') {
+  const area = document.getElementById('log-area');
+  const div = document.createElement('div');
+  div.textContent = (type === 'dim' ? '' : '> ') + msg;
+  if (type) div.className = 'log-' + type;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+</script>
+</body>
+</html>

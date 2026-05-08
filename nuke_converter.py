@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+MAGO TRANSCODER — Nuke Converter (terminal / -t mode)
+
+회사 파이프라인에 복사 시 `mago_transcoder` 서버가 다음 인자로 CLI와 맞춰야 함:
+  --shot --frames --format --codec --bitdepth
+  --colorspace-in (입력)  --colorspace (출력)
+  --ocio [--source] [--output] [--fps]
+"""
+
+import argparse
+import os
+import sys
+
+import nuke
+
+
+FORMAT_EXT = {
+    "exr": "exr",
+    "dpx": "dpx",
+    "tiff": "tiff",
+    "png": "png",
+    "mov": "mov",
+}
+
+# MOV: 단일 클립 — 한 번에 first~last execute
+CONTAINER_FORMATS = frozenset({"mov"})
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="MAGO Nuke Converter")
+    parser.add_argument("--shot", required=True, help="샷 이름")
+    parser.add_argument("--frames", required=True, help="1001-1100 또는 1001")
+    parser.add_argument("--format", default="exr", help="exr/dpx/tiff/png/mov")
+    parser.add_argument("--codec", default="piz", help="포맷별 코덱/압축")
+    parser.add_argument("--bitdepth", default="half", help="비트뎁스")
+    parser.add_argument("--colorspace", default="linear", help="출력 컬러스페이스")
+    parser.add_argument(
+        "--colorspace-in",
+        default="linear",
+        dest="colorspace_in",
+        help="입력 컬러스페이스 (OCIO 노드 in)",
+    )
+    parser.add_argument("--ocio", default="", help="OCIO config 경로")
+    parser.add_argument("--source", default="", help="소스 #### 시퀀스")
+    parser.add_argument("--output", default="", help="출력 #### 또는 클립 경로")
+    parser.add_argument(
+        "--fps",
+        type=float,
+        default=0.0,
+        help="MOV 시 root fps (0이면 Nuke 기본값 유지)",
+    )
+    args, _ = parser.parse_known_args()
+    return args
+
+
+def parse_frame_range(frames_str: str):
+    if "-" in frames_str:
+        parts = frames_str.split("-")
+        return int(parts[0]), int(parts[1])
+    f = int(frames_str)
+    return f, f
+
+
+def configure_write_node(write_node, fmt: str, codec: str, bitdepth: str):
+    ext = FORMAT_EXT.get(fmt, "exr")
+    write_node["file_type"].setValue(ext)
+
+    if fmt == "exr":
+        compression_map = {
+            "none": "none",
+            "zip1": "Zip (1 scanline)",
+            "zip16": "Zip (16 scanlines)",
+            "piz": "PIZ Wavelet (lossless)",
+            "pxr24": "PXR24 (lossy)",
+            "b44": "B44",
+            "b44a": "B44A",
+            "dwaa": "DWAA",
+            "dwab": "DWAB",
+        }
+        comp = compression_map.get(codec, "PIZ Wavelet (lossless)")
+        write_node["compression"].setValue(comp)
+        bd_map = {"half": "16 bit half", "float": "32 bit float"}
+        write_node["datatype"].setValue(bd_map.get(bitdepth, "16 bit half"))
+        print(f"[Nuke] EXR: compression={comp}, datatype={bd_map.get(bitdepth)}")
+
+    elif fmt == "dpx":
+        bd_map = {"8": "8 bit", "10": "10 bit", "12": "12 bit", "16": "16 bit"}
+        write_node["datatype"].setValue(bd_map.get(bitdepth, "10 bit"))
+
+    elif fmt == "tiff":
+        comp_map = {"none": "None", "lzw": "LZW", "deflate": "Deflate"}
+        write_node["compression"].setValue(comp_map.get(codec, "None"))
+        bd_map = {"8": "8 bit", "16": "16 bit", "32": "32 bit float"}
+        write_node["datatype"].setValue(bd_map.get(bitdepth, "16 bit"))
+
+    elif fmt == "png":
+        bd_map = {"8": "8 bit", "16": "16 bit"}
+        write_node["datatype"].setValue(bd_map.get(bitdepth, "8 bit"))
+
+    elif fmt == "mov":
+        codec_map = {
+            "h264": "H.264",
+            "h265": "H.265 (HEVC)",
+            "prores422": "Apple ProRes 422",
+            "prores4444": "Apple ProRes 4444",
+            "dnxhd": "DNxHD",
+        }
+        write_node["codec"].setValue(codec_map.get(codec, "Apple ProRes 422"))
+        if bitdepth == "10":
+            try:
+                write_node["bitDepth"].setValue(10)
+            except Exception:
+                pass
+
+def configure_ocio(ocio_path: str, cs_in: str, cs_out: str):
+    if not ocio_path or not os.path.exists(ocio_path):
+        print(f"[Nuke] OCIO 없음 또는 경로 불일치: {ocio_path} — Read→Write 직결(변환 없음).")
+        return None
+
+    try:
+        os.environ["OCIO"] = ocio_path
+        nuke.root()["colorManagement"].setValue("OCIO")
+        nuke.root()["OCIO_config"].setValue("custom")
+        nuke.root()["customOCIOConfigPath"].setValue(ocio_path)
+        print(f"[Nuke] OCIO: {ocio_path}")
+        print(f"[Nuke] OCIOColorSpace: {cs_in} → {cs_out}")
+
+        cs_node = nuke.createNode("OCIOColorSpace")
+        cs_node["in_colorspace"].setValue(cs_in)
+        cs_node["out_colorspace"].setValue(cs_out)
+        return cs_node
+    except Exception as e:
+        print(f"[Nuke] OCIO 오류: {e}")
+        return None
+
+
+def resolve_source_path(args, _frame_in: int) -> str:
+    if args.source:
+        return args.source
+    base = f"/storage/projects/comp/{args.shot}/render/####.exr"
+    print(f"[Nuke] 소스 기본 규칙: {base}")
+    return base
+
+
+def resolve_output_path(args, fmt: str) -> str:
+    if args.output:
+        return args.output
+    ext = FORMAT_EXT.get(fmt, fmt)
+    base = f"/storage/projects/transcoded/{args.shot}/####.{ext}"
+    print(f"[Nuke] 출력 기본 규칙: {base}")
+    return base
+
+
+def main():
+    args = parse_args()
+    frame_in, frame_out = parse_frame_range(args.frames)
+    fmt = (args.format or "exr").lower()
+
+    print("[Nuke] ========================================")
+    print(f"[Nuke] Shot      : {args.shot}")
+    print(f"[Nuke] Frames    : {frame_in} - {frame_out}")
+    print(f"[Nuke] Format    : {fmt.upper()}")
+    print(f"[Nuke] Codec     : {args.codec}")
+    print(f"[Nuke] BitDepth  : {args.bitdepth}")
+    print(f"[Nuke] CS        : {args.colorspace_in} → {args.colorspace}")
+    print("[Nuke] ========================================")
+
+    nuke.scriptClear()
+
+    if args.fps and args.fps > 0 and fmt in CONTAINER_FORMATS:
+        try:
+            nuke.root()["fps"].setValue(args.fps)
+            print(f"[Nuke] root fps = {args.fps}")
+        except Exception as e:
+            print(f"[Nuke] fps 설정 실패(무시): {e}")
+
+    src_path = resolve_source_path(args, frame_in)
+    read_node = nuke.createNode("Read")
+    read_node["file"].setValue(src_path)
+    read_node["first"].setValue(frame_in)
+    read_node["last"].setValue(frame_out)
+    read_node["origfirst"].setValue(frame_in)
+    read_node["origlast"].setValue(frame_out)
+
+    last_node = read_node
+    cs_node = configure_ocio(args.ocio, args.colorspace_in, args.colorspace)
+    if cs_node:
+        cs_node.setInput(0, read_node)
+        last_node = cs_node
+
+    out_path = resolve_output_path(args, fmt)
+    write_node = nuke.createNode("Write")
+    write_node["file"].setValue(out_path)
+    write_node.setInput(0, last_node)
+    configure_write_node(write_node, fmt, args.codec, args.bitdepth)
+
+    out_dir = os.path.dirname(out_path.replace("####", "0000"))
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
+    total = frame_out - frame_in + 1
+    print(f"[Nuke] 렌더: {total} 프레임, format={fmt}")
+
+    if fmt in CONTAINER_FORMATS:
+        print("[Nuke] MOV — 단일 execute(first, last)")
+        nuke.execute(write_node, frame_in, frame_out)
+    else:
+        for frame in range(frame_in, frame_out + 1):
+            nuke.execute(write_node, frame, frame)
+            done = frame - frame_in + 1
+            pct = int(done / total * 100)
+            bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
+            print(f"[Nuke] [{bar}] {pct:3d}% — {frame}/{frame_out}", flush=True)
+
+    print(f"[SUCCESS] 완료 → {out_path}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        import traceback
+
+        print(f"[ERROR] {e}")
+        traceback.print_exc()
+        sys.exit(1)
