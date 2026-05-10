@@ -19,6 +19,7 @@ MAGO_ROOT = _env("MAGO_ROOT", "/storage/inhouse/env/mago")
 # ShotGrid / FastAPI optional vendored libs (studio layout)
 FASTAPI_LIB_CANDIDATES = [
     MAGO_ROOT + "/common/fastapi_lib",
+    "/storage/inhouse/env/mago/common/fastapi_lib",  # Explicit company path
     MAGO_ROOT + "/mago_ops/mago_ops_lib",
     MAGO_ROOT + "/mago_ops/mago_fastapi_lib",
     str(PACKAGE_DIR.parent / "mago_fastapi_lib"),
