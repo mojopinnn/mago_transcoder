@@ -31,7 +31,8 @@ SG_LIBRARY_PATHS = [
     "/storage/inhouse/python_lib/python3.11/lib/python3.11/site-packages",
 ]
 
-NUKE_EXEC = _env("NUKE_EXEC", "/storage/inhouse/rez/bin/mago_bin/nuke14.0v6x.sh")
+# Use actual binary to avoid shell script bypass issues
+NUKE_EXEC = _env("NUKE_EXEC", "/usr/local/Nuke14.0v6/Nuke14.0")
 
 _default_converter = REPO_ROOT / "nuke_converter.py"
 NUKE_CONVERTER = _env("NUKE_CONVERTER", str(_default_converter))
