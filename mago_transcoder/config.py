@@ -46,6 +46,13 @@ SG_PROXY = _env("SG_PROXY", "192.168.50.200:3128")
 HOST = _env("MAGO_HOST", "0.0.0.0")
 PORT = int(_env("MAGO_PORT", "8000"))
 
+# Nuke License & Env (from internal tools)
+NUKE_ENV = {
+    "foundry_LICENSE": _env("foundry_LICENSE", "5053@192.168.50.6"),
+    "NUKE_PATH": _env("NUKE_PATH", "/storage/inhouse/env/nuke:"),
+    "CUDA_CACHE_MAXSIZE": "4294967296",
+}
+
 # Load SG secrets into os.environ from line-based KEY=value file (optional)
 def load_sg_env_file() -> None:
     path = SG_ENV_PATH

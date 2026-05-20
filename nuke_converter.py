@@ -13,7 +13,12 @@ import argparse
 import os
 import sys
 
-import nuke
+try:
+    import nuke
+except ImportError:
+    # Nuke 내부에서 실행되지 않을 경우 에러 메시지 출력 후 종료
+    print("[ERROR] 'nuke' 모듈을 찾을 수 없습니다. Nuke 내부에서 실행 중인지 확인하세요.")
+    sys.exit(1)
 
 
 FORMAT_EXT = {
@@ -59,8 +64,12 @@ def parse_frame_range(frames_str: str):
     if "-" in frames_str:
         parts = frames_str.split("-")
         return int(parts[0]), int(parts[1])
-    f = int(frames_str)
-    return f, f
+    try:
+        f = int(frames_str)
+        return f, f
+    except ValueError:
+        print("[ERROR] 잘못된 프레임 범위 형식입니다: %s" % frames_str)
+        sys.exit(1)
 
 
 def configure_write_node(write_node, fmt: str, codec: str, bitdepth: str):
@@ -83,7 +92,7 @@ def configure_write_node(write_node, fmt: str, codec: str, bitdepth: str):
         write_node["compression"].setValue(comp)
         bd_map = {"half": "16 bit half", "float": "32 bit float"}
         write_node["datatype"].setValue(bd_map.get(bitdepth, "16 bit half"))
-        print(f"[Nuke] EXR: compression={comp}, datatype={bd_map.get(bitdepth)}")
+        print(f"[Nuke] EXR 설정: compression={comp}, datatype={write_node['datatype'].value()}")
 
     elif fmt == "dpx":
         bd_map = {"8": "8 bit", "10": "10 bit", "12": "12 bit", "16": "16 bit"}
@@ -114,9 +123,10 @@ def configure_write_node(write_node, fmt: str, codec: str, bitdepth: str):
             except Exception:
                 pass
 
+
 def configure_ocio(ocio_path: str, cs_in: str, cs_out: str):
     if not ocio_path or not os.path.exists(ocio_path):
-        print(f"[Nuke] OCIO 없음 또는 경로 불일치: {ocio_path} — Read→Write 직결(변환 없음).")
+        print(f"[Nuke] OCIO 미지정 혹은 경로 누락: {ocio_path} — 컬러 변환 없이 진행합니다.")
         return None
 
     try:
@@ -124,23 +134,24 @@ def configure_ocio(ocio_path: str, cs_in: str, cs_out: str):
         nuke.root()["colorManagement"].setValue("OCIO")
         nuke.root()["OCIO_config"].setValue("custom")
         nuke.root()["customOCIOConfigPath"].setValue(ocio_path)
-        print(f"[Nuke] OCIO: {ocio_path}")
-        print(f"[Nuke] OCIOColorSpace: {cs_in} → {cs_out}")
+        print(f"[Nuke] OCIO 활성화: {ocio_path}")
+        print(f"[Nuke] 컬러 변환: {cs_in} → {cs_out}")
 
         cs_node = nuke.createNode("OCIOColorSpace")
         cs_node["in_colorspace"].setValue(cs_in)
         cs_node["out_colorspace"].setValue(cs_out)
         return cs_node
     except Exception as e:
-        print(f"[Nuke] OCIO 오류: {e}")
+        print(f"[Nuke] OCIO 노드 설정 오류: {e}")
         return None
 
 
 def resolve_source_path(args, _frame_in: int) -> str:
     if args.source:
         return args.source
+    # 기본 경로 규칙 (스튜디오 상황에 맞게 수정 가능)
     base = f"/storage/projects/comp/{args.shot}/render/####.exr"
-    print(f"[Nuke] 소스 기본 규칙: {base}")
+    print(f"[Nuke] 소스 경로 미지정, 기본값 사용: {base}")
     return base
 
 
@@ -148,8 +159,9 @@ def resolve_output_path(args, fmt: str) -> str:
     if args.output:
         return args.output
     ext = FORMAT_EXT.get(fmt, fmt)
+    # 기본 경로 규칙
     base = f"/storage/projects/transcoded/{args.shot}/####.{ext}"
-    print(f"[Nuke] 출력 기본 규칙: {base}")
+    print(f"[Nuke] 출력 경로 미지정, 기본값 사용: {base}")
     return base
 
 
@@ -158,25 +170,28 @@ def main():
     frame_in, frame_out = parse_frame_range(args.frames)
     fmt = (args.format or "exr").lower()
 
-    print("[Nuke] ========================================")
+    print("[Nuke] ----------------------------------------")
     print(f"[Nuke] Shot      : {args.shot}")
     print(f"[Nuke] Frames    : {frame_in} - {frame_out}")
     print(f"[Nuke] Format    : {fmt.upper()}")
     print(f"[Nuke] Codec     : {args.codec}")
     print(f"[Nuke] BitDepth  : {args.bitdepth}")
-    print(f"[Nuke] CS        : {args.colorspace_in} → {args.colorspace}")
-    print("[Nuke] ========================================")
+    print(f"[Nuke] Color     : {args.colorspace_in} -> {args.colorspace}")
+    print("[Nuke] ----------------------------------------")
 
     nuke.scriptClear()
 
     if args.fps and args.fps > 0 and fmt in CONTAINER_FORMATS:
         try:
             nuke.root()["fps"].setValue(args.fps)
-            print(f"[Nuke] root fps = {args.fps}")
+            print(f"[Nuke] Root FPS 설정: {args.fps}")
         except Exception as e:
-            print(f"[Nuke] fps 설정 실패(무시): {e}")
+            print(f"[Nuke] FPS 설정 실패 (무시): {e}")
 
     src_path = resolve_source_path(args, frame_in)
+    if not os.path.exists(os.path.dirname(src_path.replace("####", str(frame_in).zfill(4)))):
+        print(f"[WARNING] 소스 디렉토리를 찾을 수 없습니다: {os.path.dirname(src_path)}")
+
     read_node = nuke.createNode("Read")
     read_node["file"].setValue(src_path)
     read_node["first"].setValue(frame_in)
@@ -196,25 +211,35 @@ def main():
     write_node.setInput(0, last_node)
     configure_write_node(write_node, fmt, args.codec, args.bitdepth)
 
+    # 출력 디렉토리 생성
     out_dir = os.path.dirname(out_path.replace("####", "0000"))
-    if out_dir:
-        os.makedirs(out_dir, exist_ok=True)
+    if out_dir and not os.path.exists(out_dir):
+        try:
+            os.makedirs(out_dir)
+            print(f"[Nuke] 출력 디렉토리 생성 완료: {out_dir}")
+        except Exception as e:
+            print(f"[ERROR] 출력 디렉토리 생성 실패: {e}")
+            sys.exit(1)
 
     total = frame_out - frame_in + 1
-    print(f"[Nuke] 렌더: {total} 프레임, format={fmt}")
+    print(f"[Nuke] 렌더링 시작: 총 {total} 프레임")
 
-    if fmt in CONTAINER_FORMATS:
-        print("[Nuke] MOV — 단일 execute(first, last)")
-        nuke.execute(write_node, frame_in, frame_out)
-    else:
-        for frame in range(frame_in, frame_out + 1):
-            nuke.execute(write_node, frame, frame)
-            done = frame - frame_in + 1
-            pct = int(done / total * 100)
-            bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
-            print(f"[Nuke] [{bar}] {pct:3d}% — {frame}/{frame_out}", flush=True)
+    try:
+        if fmt in CONTAINER_FORMATS:
+            print("[Nuke] 동영상 포맷 (MOV) 렌더링 중...")
+            nuke.execute(write_node, frame_in, frame_out)
+        else:
+            for frame in range(frame_in, frame_out + 1):
+                nuke.execute(write_node, frame, frame)
+                done = frame - frame_in + 1
+                pct = int(float(done) / total * 100)
+                bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
+                print(f"[Nuke] [{bar}] {pct:3d}% | {frame}/{frame_out}", flush=True)
+    except Exception as e:
+        print(f"[ERROR] 렌더링 중 치명적 오류 발생: {e}")
+        sys.exit(1)
 
-    print(f"[SUCCESS] 완료 → {out_path}")
+    print(f"[SUCCESS] 모든 작업 완료 -> {out_path}")
 
 
 if __name__ == "__main__":
@@ -222,7 +247,6 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         import traceback
-
-        print(f"[ERROR] {e}")
+        print(f"[ERROR] 예외 발생: {e}")
         traceback.print_exc()
         sys.exit(1)

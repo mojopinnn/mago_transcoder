@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+# 1. config 모듈을 먼저 가져와서 경로 시스템을 확장합니다.
+from . import config
+config.load_sg_env_file()
+config.ensure_sys_path()
+
+# 2. 그 다음 기존 표준 라이브러리와 외부 패키지들을 임포트합니다.
 import asyncio
 import json
 import uuid
@@ -11,7 +17,6 @@ from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 import uvicorn
 
-from . import config
 from .engine import MagoEngine
 from .shotgrid import (
     fetch_shots_from_sg,
@@ -19,10 +24,6 @@ from .shotgrid import (
     get_cached_colorspaces,
 )
 from .ui import FORMAT_DEFS, build_html
-
-# studio sys.path + SG secrets file (hwang_edit lessons: multipart needs importing fastapi only)
-config.load_sg_env_file()
-config.ensure_sys_path()
 
 app = FastAPI(title="MAGO TRANSCODER")
 engine = MagoEngine()

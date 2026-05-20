@@ -33,18 +33,21 @@ class MagoEngine:
         output_path = payload.get("output_path", "")
         fps = payload.get("fps")
 
-        await log_queue.put(f"[Engine] '{shot_name}' 렌더 시작")
+        await log_queue.put(f"[Engine] '{shot_name}' 트랜스코딩 시작")
         await log_queue.put(
             f"[Engine] 프레임: {frames} | 포맷: {str(fmt).upper()} | 코덱: {codec} | 비트뎁스: {bitdepth}"
         )
         await log_queue.put(f"[Engine] 컬러: {colorspace_in} → {colorspace}")
-        if source_path:
-            await log_queue.put(f"[Engine] 소스 경로: {source_path}")
-
+        
+        # Nuke 실행 명령 구성 (사내 툴 참고)
+        # --nukex: NukeX 기능 사용
+        # -i: 대화형 모드 비활성화 (no interactive)
+        # -t: 터미널 모드 (no UI)
         cmd: list[str] = [
             config.NUKE_EXEC,
-            "-t",
             "--nukex",
+            "-i",
+            "-t",
             config.NUKE_CONVERTER,
             "--shot",
             shot_name,
@@ -63,6 +66,7 @@ class MagoEngine:
             "--ocio",
             config.OCIO_CONFIG_PATH,
         ]
+        
         if source_path:
             cmd += ["--source", source_path]
         if output_path:
@@ -72,12 +76,18 @@ class MagoEngine:
 
         await log_queue.put(f"[CMD] {' '.join(cmd)}")
 
+        # 환경 변수 준비 (라이선스 정보 등 포함)
+        current_env = os.environ.copy()
+        current_env.update(config.NUKE_ENV)
+
         try:
             preexec = _preexec_child()
+            # stderr=asyncio.subprocess.STDOUT를 사용하여 에러 출력도 로그에 합침
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                env=current_env,
                 preexec_fn=preexec,
             )
             self.active_processes[task_id] = process
@@ -94,7 +104,7 @@ class MagoEngine:
             await process.wait()
 
             if process.returncode == 0:
-                await log_queue.put("[SUCCESS] 렌더링이 정상 완료되었습니다.")
+                await log_queue.put("[SUCCESS] 트랜스코딩이 완료되었습니다.")
             else:
                 rc = process.returncode or 0
                 status = "중단됨" if rc < 0 else f"실패 (Code: {rc})"
@@ -105,7 +115,7 @@ class MagoEngine:
             self.kill_process(task_id)
             raise
         except Exception as e:
-            await log_queue.put(f"[ERROR] 엔진 실행 오류: {e}")
+            await log_queue.put(f"[ERROR] 엔진 실행 중 오류 발생: {e}")
         finally:
             self.active_processes.pop(task_id, None)
 
@@ -115,9 +125,10 @@ class MagoEngine:
             return
         try:
             if os.name == "nt":
-                process.terminate()
+                # Windows에서는 강제 종료(kill) 시도
+                process.kill()
             else:
                 os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-            print(f"[Cleanup] Task {task_id} (PID {process.pid}) 종료 요청.")
+            print(f"[Cleanup] Task {task_id} (PID {process.pid}) 종료 요청 완료.")
         except Exception as e:
-            print(f"[Cleanup] 종료 오류: {e}")
+            print(f"[Cleanup] 종료 중 오류: {e}")
