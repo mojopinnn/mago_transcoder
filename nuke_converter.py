@@ -158,11 +158,10 @@ def resolve_source_path(args, _frame_in: int) -> str:
 def resolve_output_path(args, fmt: str) -> str:
     if args.output:
         return args.output
-    ext = FORMAT_EXT.get(fmt, fmt)
-    # 기본 경로 규칙
-    base = f"/storage/projects/transcoded/{args.shot}/####.{ext}"
-    print(f"[Nuke] 출력 경로 미지정, 기본값 사용: {base}")
-    return base
+    
+    # 출력 경로가 명시되지 않은 경우 에러 처리
+    print("[ERROR] 출력 경로(--output)가 지정되지 않았습니다. UI에서 경로를 확인해 주세요.")
+    sys.exit(1)
 
 
 def main():
@@ -189,8 +188,12 @@ def main():
             print(f"[Nuke] FPS 설정 실패 (무시): {e}")
 
     src_path = resolve_source_path(args, frame_in)
-    if not os.path.exists(os.path.dirname(src_path.replace("####", str(frame_in).zfill(4)))):
-        print(f"[WARNING] 소스 디렉토리를 찾을 수 없습니다: {os.path.dirname(src_path)}")
+    
+    # 소스 파일 존재 여부 엄격하게 체크
+    first_frame_path = src_path.replace("####", str(frame_in).zfill(4)).replace("%04d", str(frame_in).zfill(4))
+    if not os.path.exists(first_frame_path):
+        print(f"[ERROR] 소스 파일을 찾을 수 없습니다: {first_frame_path}")
+        sys.exit(1)
 
     read_node = nuke.createNode("Read")
     read_node["file"].setValue(src_path)

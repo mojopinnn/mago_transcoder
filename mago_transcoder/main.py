@@ -133,6 +133,30 @@ async def get_colorspaces() -> JSONResponse:
     return JSONResponse({"colorspaces": get_cached_colorspaces(), "ocio_config": config.OCIO_CONFIG_PATH})
 
 
+@app.post("/api/open-folder")
+async def open_folder(request: Request) -> JSONResponse:
+    payload = await request.json()
+    path = payload.get("path")
+    if not path or not os.path.exists(path):
+        return JSONResponse({"status": "error", "message": "존재하지 않는 경로입니다."}, status_code=400)
+
+    try:
+        import platform
+        import subprocess
+
+        system = platform.system()
+        if system == "Windows":
+            os.startfile(path)
+        elif system == "Darwin":  # macOS
+            subprocess.run(["open", path])
+        else:  # Linux
+            subprocess.run(["xdg-open", path])
+        
+        return JSONResponse({"status": "ok"})
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
 def main() -> None:
     print("-" * 60)
     print("  MAGO TRANSCODER")
