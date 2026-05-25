@@ -174,6 +174,8 @@ async def view_folder(path: str = Query("")) -> Any:
         parent_url = f"/view-folder?path={urllib.parse.quote(parent_dir)}"
         parent_link = f'<a href="{parent_url}" style="text-decoration:none;font-weight:bold;color:#3b82f6;display:inline-block;">[상위 폴더로 이동]</a>'
 
+    safe_path_js = path.replace("\\", "\\\\")
+
     html_content = f"""
     <html>
         <head>
@@ -219,7 +221,7 @@ async def view_folder(path: str = Query("")) -> Any:
                                 await fetch('/api/create-folder', {{
                                     method: 'POST',
                                     headers: {{ 'Content-Type': 'application/json' }},
-                                    body: JSON.stringify({{ current_path: '{path.replace("\\", "\\\\")}', folder_name: safeName }})
+                                    body: JSON.stringify({{ current_path: '{safe_path_js}', folder_name: safeName }})
                                 }});
                                 location.reload();
                             }} catch (e) {{
