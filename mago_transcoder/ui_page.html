@@ -79,8 +79,18 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
         <div><label class="fl">Source Path</label><input type="text" id="inp-source" placeholder="/path/####.exr"></div>
       </div>
       <div class="fg2">
-        <div><label class="fl">Frame In</label><input type="text" id="inp-frame-in" placeholder="1001"></div>
-        <div><label class="fl">Frame Out</label><input type="text" id="inp-frame-out" placeholder="1100"></div>
+        <div>
+          <label class="fl" id="lbl-frame-in">Frame In</label>
+          <input type="text" id="inp-frame-in" placeholder="1001">
+        </div>
+        <div id="col-frame-out">
+          <label class="fl">Frame Out</label>
+          <input type="text" id="inp-frame-out" placeholder="1100">
+        </div>
+      </div>
+      <div style="margin-top:-6px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="chk-single-frame" onchange="toggleSingleFrameMode()">
+        <label for="chk-single-frame" style="font-size:11px;color:var(--dim);cursor:pointer">Single Frame 모드</label>
       </div>
       <div class="preset-row">
         <button class="preset-btn" type="button" onclick="setSingleFrame()">현재 프레임만</button>
@@ -126,7 +136,17 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
     <div class="ocio-path" id="ocio-path-display"></div>
   </div>
 
-  <button class="run-btn" id="run-btn" type="button" onclick="handleRun()">TRIGGER NUKE RENDER</button>
+  <button class="run-btn" id="run-btn" type="button" onclick="handleRun()">RENDER</button>
+  
+  <div id="progress-container" style="display:none; flex-direction:column; gap:8px;">
+    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--dim); font-weight:bold;">
+      <span id="progress-text">RENDER PROGRESS</span>
+      <span id="progress-percent">0%</span>
+    </div>
+    <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden;">
+      <div id="progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.3s ease, background 0.3s ease;"></div>
+    </div>
+  </div>
 
   <div class="console">
     <div class="console-hdr">
@@ -195,7 +215,7 @@ function selectShot(idx) {
   document.getElementById('inp-frame-out').value = s.frame_out;
   document.getElementById('inp-source').value = s.source_path || '';
   
-  // 서버에서 넘어온 SGTK 아웃풋 경로가 있으면 사용, 없으면 빈 값
+  // 서버에서 넘어온 아웃풋 폴더 경로가 있으면 사용, 없으면 빈 값 (가짜 텍스트 노출 차단)
   document.getElementById('inp-output').value = s.output_path || '';
   
   // 컬러 스페이스 자동 매칭
@@ -235,7 +255,8 @@ async function browseFolder() {
 
 function updateOutputNameByFormat() {
   const inp = document.getElementById('inp-output');
-  if (!inp.value) return;
+  // 경로가 없거나 유효하지 않으면 자동 갱신 건너뜀
+  if (!inp.value || inp.value === '.' || inp.value === '/') return;
 
   const s = state.shots[state.selectedIdx];
   const version = s ? s.version_name : 'output';
@@ -243,24 +264,17 @@ function updateOutputNameByFormat() {
   
   let pathStr = inp.value.replace(/\\/g, '/');
   const lastSlash = pathStr.lastIndexOf('/');
-  const dir = lastSlash !== -1 ? pathStr.substring(0, lastSlash) : '.';
+  let dir = lastSlash !== -1 ? pathStr.substring(0, lastSlash) : pathStr;
   
   const ext = fmt === 'mov' ? 'mov' : `####.${fmt}`;
   inp.value = `${dir}/${version}.${ext}`;
 }
 
-async function openShotFolder() {
+function openShotFolder() {
   const s = state.shots[state.selectedIdx];
   if (!s || !s.source_path) return;
   const folderPath = s.source_path.substring(0, s.source_path.lastIndexOf('/'));
-  
-  try {
-    await fetch('/api/open-folder', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ path: folderPath })
-    });
-  } catch (e) { log('폴더 열기 실패: ' + e.message, 'error'); }
+  window.open('/view-folder?path=' + encodeURIComponent(folderPath), '_blank');
 }
 
 function buildFormatTabs() {
@@ -322,7 +336,16 @@ function updateFmtSummary() {
 
 function buildColorspaceSelects() {
   const favs = JSON.parse(localStorage.getItem('mago_fav_colorspaces') || '[]');
-  const core = ['ACES2065-1', 'ACEScg', 'ACEScct', 'V3 LogC', 'V4 LogC', 'Rec.709', 'sRGB'];
+  const core = [
+    'ACES - ACES2065-1',
+    'ACES - ACEScg',
+    'ACES - ACEScct',
+    'Input - ARRI - V3 LogC (EI800) - Wide Gamut',
+    'Input - ARRI - V4 LogC (EI800) - Wide Gamut',
+    'Output - Rec.709',
+    'Output - sRGB',
+    'Utility - sRGB - Texture'
+  ];
   
   ['sel-cs-in', 'sel-cs-out'].forEach((selId, idx) => {
     const sel = document.getElementById(selId);
@@ -406,9 +429,31 @@ function autoMatchColorspace(selId, targetCs) {
   }
 }
 
+function toggleSingleFrameMode() {
+  const isSingle = document.getElementById('chk-single-frame').checked;
+  const lblIn = document.getElementById('lbl-frame-in');
+  const colOut = document.getElementById('col-frame-out');
+  
+  if (isSingle) {
+    lblIn.textContent = 'Frame';
+    colOut.style.visibility = 'hidden';
+    document.getElementById('inp-frame-out').value = document.getElementById('inp-frame-in').value;
+  } else {
+    lblIn.textContent = 'Frame In';
+    colOut.style.visibility = 'visible';
+    setFullRange();
+  }
+}
+
 function setSingleFrame() {
+  // 기존 버튼 기능 유지하되 체크박스 상태와 연동
   const fin = document.getElementById('inp-frame-in').value || '1001';
   document.getElementById('inp-frame-out').value = fin;
+  // 만약 체크박스가 안되어 있다면 체크해주기 (사용자 의도 반영)
+  if (!document.getElementById('chk-single-frame').checked) {
+    document.getElementById('chk-single-frame').checked = true;
+    toggleSingleFrameMode();
+  }
 }
 function setFullRange() {
   if (state.shots.length) {
@@ -443,10 +488,24 @@ async function handleRun() {
   btn.textContent = 'CANCEL PROCESS';
   btn.classList.add('cancel');
   state.abortCtrl = new AbortController();
+  
+  // 프로그레스 바 초기화
+  const progContainer = document.getElementById('progress-container');
+  const progBar = document.getElementById('progress-bar');
+  const progText = document.getElementById('progress-text');
+  const progPercent = document.getElementById('progress-percent');
+  
+  progContainer.style.display = 'flex';
+  progBar.style.width = '0%';
+  progBar.style.background = 'linear-gradient(90deg, var(--accent), var(--accent2))';
+  progText.textContent = 'RENDERING...';
+  progText.style.color = 'var(--dim)';
+  progPercent.textContent = '0%';
 
   log(`시작 → ${shotName} | ${frames} | ${fmt.toUpperCase()}`, 'info');
   log(`컬러: ${csIn} → ${csOut}`, 'info');
 
+  btn.textContent = 'CANCEL';
   try {
     const res = await fetch('/api/render', {
       method: 'POST',
@@ -468,8 +527,33 @@ async function handleRun() {
         try {
           const { log: msg } = JSON.parse(chunk.slice(6));
           const l = msg.toLowerCase();
-          if (l.includes('[success]')) log(msg, 'success');
-          else if (l.includes('[failed]') || l.includes('[error]')) log(msg, 'error');
+          
+          if (msg.startsWith('[PROGRESS]')) {
+            const percent = msg.split(' ')[1];
+            progBar.style.width = percent + '%';
+            progPercent.textContent = percent + '%';
+          }
+          else if (msg === '[ERROR_STATE]') {
+            progBar.style.background = 'var(--error)';
+            progText.textContent = 'ERROR OCCURRED';
+            progText.style.color = 'var(--error)';
+            // 에러 시 강제 연결 종료 유도
+            if (state.abortCtrl) state.abortCtrl.abort();
+          }
+          else if (l.includes('[success]')) {
+            log(msg, 'success');
+            progBar.style.width = '100%';
+            progBar.style.background = 'var(--success)';
+            progText.textContent = 'RENDER COMPLETE';
+            progText.style.color = 'var(--success)';
+            progPercent.textContent = '100%';
+          }
+          else if (l.includes('[failed]') || l.includes('[error]')) {
+            log(msg, 'error');
+            progBar.style.background = 'var(--error)';
+            progText.textContent = 'RENDER FAILED';
+            progText.style.color = 'var(--error)';
+          }
           else if (l.includes('[system]')) log(msg, 'warn');
           else if (l.includes('[cmd]')) log(msg, 'cmd');
           else log(msg);
@@ -480,7 +564,7 @@ async function handleRun() {
     log(err.name === 'AbortError' ? '취소됨.' : ('오류: ' + err.message), 'error');
   } finally {
     state.abortCtrl = null;
-    btn.textContent = 'TRIGGER NUKE RENDER';
+    btn.textContent = 'RENDER';
     btn.classList.remove('cancel');
     document.getElementById('console-status').textContent = 'IDLE';
   }

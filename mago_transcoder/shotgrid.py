@@ -3,12 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
-
-try:
-    import sgtk
-except ImportError:
-    sgtk = None
 
 from . import config
 
@@ -35,46 +31,6 @@ def create_sg_connection():  # type: ignore[no-untyped-def]
         return None
 
 
-def get_sgtk_output_path(shot_id: int) -> str:
-    """SGTK 템플릿 'nuke_shot_render_mono_dpx' 기반으로 아웃풋 경로 계산."""
-    if not sgtk:
-        return ""
-
-    try:
-        # SGTK 엔진 및 컨텍스트 생성
-        mgr = sgtk.bootstrap.ToolkitManager()
-        # 이미 세션이 있는 경우를 대비해 직접 추상화된 방식으로 접근하거나 프로젝트 기반으로 처리
-        # 여기서는 가장 일반적인 path 기반 또는 id 기반 컨텍스트 생성을 가정
-        # (실제 환경에 따라 sgtk.sgtk_from_path 등을 사용할 수도 있음)
-        sg = create_sg_connection()
-        if not sg:
-            return ""
-
-        shot = sg.find_one("Shot", [["id", "is", shot_id]], ["project"])
-        if not shot:
-            return ""
-
-        if not shot.get("project"):
-            print(f"[SGTK] 프로젝트 정보가 누락된 샷입니다. (Shot ID: {shot_id})")
-            return ""
-
-        tk = sgtk.sgtk_from_entity(shot["project"]["type"], shot["project"]["id"])
-        ctx = tk.context_from_entity("Shot", shot_id)
-        template = tk.templates.get("nuke_shot_render_mono_dpx")
-
-        if not template:
-            return ""
-
-        fields = ctx.as_template_fields(template)
-        fields["version"] = 1
-        fields["SEQ"] = "####"
-
-        return template.apply_fields(fields).replace("\\", "/")
-    except Exception as e:
-        print(f"[SGTK] 경로 계산 실패: {e}")
-        return ""
-
-
 def fetch_versions_from_sg(version_ids: list[int]) -> list[dict[str, Any]]:
     sg = create_sg_connection()
     if not sg:
@@ -98,8 +54,11 @@ def fetch_versions_from_sg(version_ids: list[int]) -> list[dict[str, Any]]:
     for v in versions:
         shot_name = ""
         shot_id = 0
-        frame_in = v.get("sg_first_frame") or 1001
-        frame_out = v.get("sg_last_frame") or 1001
+        
+        # [수정] ShotGrid 필드를 신뢰하지 않고 실제 파일 스캔으로 대체하기 위한 초기화
+        frame_in = 1001
+        frame_out = 1001
+        
         cs_in = ""
         cs_out = ""
 
@@ -123,7 +82,39 @@ def fetch_versions_from_sg(version_ids: list[int]) -> list[dict[str, Any]]:
         if cs_in and not cs_out:
             cs_out = cs_in
 
-        output_path = get_sgtk_output_path(shot_id) if shot_id else ""
+        # [수정] SGTK 대신 Source Path 기반으로 폴더 경로 추출
+        source_path = v.get("sg_path_to_frames") or v.get("sg_path_to_movie") or ""
+        output_path = ""
+        
+        if source_path:
+            source_dir = os.path.dirname(source_path)
+            output_path = source_dir.replace("\\", "/")
+            
+            # [추가] 실제 디스크 파일 스캔을 통한 프레임 계산
+            if os.path.isdir(source_dir):
+                try:
+                    files = os.listdir(source_dir)
+                    frame_numbers = []
+                    for f in files:
+                        # 파일명에서 숫자 패턴 추출 (보통 .1001.exr 또는 _1001.exr)
+                        match = re.search(r'(?:[\._])(\d+)(?:[\._])', f)
+                        if match:
+                            frame_numbers.append(int(match.group(1)))
+                        else:
+                            # 끝부분에 숫자가 있는 경우 (예: shot_v01.1001.exr)
+                            match = re.findall(r'(\d+)', f)
+                            if match:
+                                frame_numbers.append(int(match[-1]))
+                    
+                    if frame_numbers:
+                        frame_in = min(frame_numbers)
+                        frame_out = max(frame_numbers)
+                except Exception as e:
+                    print(f"[SCAN] 파일 스캔 실패: {e}")
+            else:
+                # 단일 파일(MOV 등)인 경우 SG 필드 사용 시도
+                frame_in = v.get("sg_first_frame") or 1001
+                frame_out = v.get("sg_last_frame") or 1001
 
         results.append(
             {
@@ -163,7 +154,8 @@ def fetch_shots_from_sg(shot_ids: list[int]) -> list[dict[str, Any]]:
         if cs_in and not cs_out:
             cs_out = cs_in
 
-        output_path = get_sgtk_output_path(s["id"])
+        # Shot 엔티티의 경우 소스 경로가 없을 수 있으므로 빈 값 유지 (프론트엔드에서 방어 로직 처리)
+        output_path = ""
 
         results.append(
             {
