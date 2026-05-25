@@ -10,7 +10,9 @@ MAGO TRANSCODER — Nuke Converter (terminal / -t mode)
 """
 
 import argparse
+import glob
 import os
+import re
 import sys
 
 try:
@@ -56,6 +58,9 @@ def parse_args():
         default=0.0,
         help="MOV 시 root fps (0이면 Nuke 기본값 유지)",
     )
+    parser.add_argument("--slate", action="store_true", help="슬레이트 합성 여부")
+    parser.add_argument("--slate_version", default=None, help="슬레이트 표기 커스텀 버전 (예: v002)")
+    parser.add_argument("--project", default="", help="프로젝트 코드명 (예: ews, wm)")
     args, _ = parser.parse_known_args()
     return args
 
@@ -192,6 +197,24 @@ def main():
 
     ocio_enabled = configure_ocio_root(args.ocio)
 
+    out_path = resolve_output_path(args, fmt)
+
+    # 1. 가상 스크립트 이름 주입 (Nuke Root 속이기)
+    if args.slate:
+        base_name = os.path.splitext(os.path.basename(out_path))[0]
+        # 버전 치환 로직 (v011 -> v002 등)
+        if args.slate_version:
+            # v로 시작하고 숫자가 붙은 패턴을 찾아 치환
+            new_base_name = re.sub(r"v\d+", args.slate_version, base_name)
+            # 만약 치환되지 않았다면 (패턴이 없을 경우) 뒤에 붙임
+            if new_base_name == base_name and not re.search(r"v\d+", base_name):
+                new_base_name = f"{base_name}_{args.slate_version}"
+            base_name = new_base_name
+
+        nk_file = os.path.join(os.path.dirname(out_path), f"{base_name}.nk")
+        nuke.root()["name"].setValue(nk_file)
+        print(f"[Nuke] 가상 스크립트 이름 주입: {nk_file}")
+
     read_node = nuke.createNode("Read")
     read_node["file"].setValue(src_path)
     read_node["first"].setValue(frame_in)
@@ -206,10 +229,45 @@ def main():
         except Exception as e:
             print(f"[Nuke] Read 노드 컬러 설정 실패: {e}")
 
-    out_path = resolve_output_path(args, fmt)
+    # 2. 슬레이트 기즈모 로드 및 연결
+    last_node = read_node
+    if args.slate:
+        gizmo_dir = "/storage/inhouse/env/nuke/NukeShared/Repository/Nodes/MAGO/Slate"
+        if os.path.exists(gizmo_dir):
+            nuke.pluginAddPath(gizmo_dir)
+            gizmo_list = glob.glob(os.path.join(gizmo_dir, "*.gizmo"))
+
+            gizmo_file = None
+            # nocolor 버전 우선 탐색
+            for g in gizmo_list:
+                if f"slate_{args.project}_nocolor" in g:
+                    gizmo_file = g
+                    break
+            
+            # 일반 버전 탐색
+            if gizmo_file is None:
+                for g in gizmo_list:
+                    if f"slate_{args.project}" in g:
+                        gizmo_file = g
+                        break
+            
+            if gizmo_file:
+                try:
+                    gizmo_node_name = os.path.basename(gizmo_file).replace(".gizmo", "")
+                    slate_node = nuke.createNode(gizmo_node_name)
+                    slate_node.setInput(0, read_node)
+                    last_node = slate_node
+                    print(f"[Nuke] 슬레이트 기즈모 적용: {gizmo_node_name}")
+                except Exception as e:
+                    print(f"[ERROR] 슬레이트 기즈모 생성 실패: {e}")
+            else:
+                print(f"[WARN] 프로젝트({args.project})에 맞는 슬레이트 기즈모를 찾을 수 없습니다.")
+        else:
+            print(f"[WARN] 슬레이트 기즈모 경로가 존재하지 않습니다: {gizmo_dir}")
+
     write_node = nuke.createNode("Write")
     write_node["file"].setValue(out_path)
-    write_node.setInput(0, read_node)
+    write_node.setInput(0, last_node)
     configure_write_node(write_node, fmt, args.codec, args.bitdepth)
 
     if ocio_enabled and args.colorspace:

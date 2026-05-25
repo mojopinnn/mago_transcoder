@@ -73,6 +73,17 @@ class MagoEngine:
             "--ocio",
             config.OCIO_CONFIG_PATH,
         ]
+
+        # Slate 인자 추가
+        if payload.get("use_slate"):
+            cmd.append("--slate")
+            project = payload.get("project")
+            if project:
+                cmd.extend(["--project", str(project)])
+            
+            slate_ver = payload.get("slate_version")
+            if slate_ver:
+                cmd.extend(["--slate_version", str(slate_ver)])
         
         if source_path:
             cmd += ["--source", source_path]

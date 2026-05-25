@@ -95,6 +95,14 @@ async def sg_info(ids: str = Query(""), names: str = Query("")) -> JSONResponse:
 
 @app.post("/api/render")
 async def handle_render(request: Request) -> StreamingResponse:
+    # 렌더링 요청 페이로드 예시:
+    # {
+    #   "shot_name": "DHA_1430",
+    #   "use_slate": true,
+    #   "project": "dha",
+    #   "slate_version": "v002",
+    #   ...
+    # }
     payload = await request.json()
     task_id = str(payload.get("task_id") or uuid.uuid4())
     log_queue: asyncio.Queue = asyncio.Queue()

@@ -110,6 +110,22 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
       <div class="sec-label">OUTPUT FORMAT</div>
       <div><label class="fl">File Format</label><div class="tab-row" id="fmt-tabs"></div></div>
       <div id="fmt-options-area"></div>
+      
+      <!-- Slate Options -->
+      <div style="border-top:1px solid var(--border); padding-top:14px; margin-top:4px; display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="use_slate" style="width:14px; height:14px; cursor:pointer;">
+            <label for="use_slate" style="font-size:12px; font-weight:700; color:#fff; cursor:pointer;">슬레이트 포함</label>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="enable_custom_slate_ver" style="width:14px; height:14px; cursor:pointer;" onchange="toggleSlateVersionInput()">
+            <label for="enable_custom_slate_ver" style="font-size:12px; color:var(--dim); cursor:pointer;">slate ver.</label>
+            <input type="text" id="slate_version" disabled placeholder="버전 입력" style="width:80px; padding:4px 8px; font-size:11px; height:26px;">
+          </div>
+        </div>
+      </div>
+
       <div class="fmt-summary" id="fmt-summary-val">—</div>
     </div>
   </div>
@@ -221,8 +237,32 @@ function selectShot(idx) {
   autoMatchColorspace('sel-cs-in', s.colorspace_in);
   autoMatchColorspace('sel-cs-out', s.colorspace_out);
   
+  // 버전 자동 추출 및 Slate Placeholder 설정
+  updateSlateVersionPlaceholder(s.version_name || s.shot_name || '');
+
   document.querySelectorAll('.shot-card').forEach((c, i) => c.classList.toggle('selected', i === idx));
   updateOutputNameByFormat();
+}
+
+function updateSlateVersionPlaceholder(text) {
+  const slateInput = document.getElementById('slate_version');
+  const verMatch = text.match(/v\d+/i);
+  if (verMatch) {
+    slateInput.placeholder = verMatch[0];
+  } else {
+    slateInput.placeholder = "버전 입력";
+  }
+}
+
+function toggleSlateVersionInput() {
+  const chk = document.getElementById('enable_custom_slate_ver');
+  const inp = document.getElementById('slate_version');
+  inp.disabled = !chk.checked;
+  if (chk.checked) {
+    inp.focus();
+  } else {
+    inp.value = '';
+  }
 }
 
 function restoreTemplatePath() {
@@ -508,6 +548,18 @@ async function handleRun() {
   log(`컬러: ${csIn} → ${csOut}`, 'info');
 
   btn.textContent = 'CANCEL';
+  // Slate Data
+  const useSlate = document.getElementById('use_slate').checked;
+  const enableCustomVer = document.getElementById('enable_custom_slate_ver').checked;
+  const customSlateVer = document.getElementById('slate_version').value;
+  
+  // Project 파싱 (예: DHA_1430 -> dha)
+  let projectCode = "";
+  if (shotName) {
+    const parts = shotName.split('_');
+    if (parts.length > 0) projectCode = parts[0].toLowerCase();
+  }
+
   try {
     const res = await fetch('/api/render', {
       method: 'POST',
@@ -515,7 +567,11 @@ async function handleRun() {
       body: JSON.stringify({
         shot_name: shotName, frames, format: fmt, codec, bitdepth,
         colorspace_in: csIn, colorspace: csOut,
-        source_path: srcPath, output_path: outPath, task_id: taskId
+        source_path: srcPath, output_path: outPath, task_id: taskId,
+        // Slate payload
+        use_slate: useSlate,
+        project: projectCode,
+        slate_version: (enableCustomVer && customSlateVer) ? customSlateVer : null
       }),
       signal: state.abortCtrl.signal
     });
