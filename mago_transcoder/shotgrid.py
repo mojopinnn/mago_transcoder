@@ -96,12 +96,12 @@ def fetch_versions_from_sg(version_ids: list[int]) -> list[dict[str, Any]]:
                     files = os.listdir(source_dir)
                     frame_numbers = []
                     for f in files:
-                        # 파일명에서 숫자 패턴 추출 (보통 .1001.exr 또는 _1001.exr)
-                        match = re.search(r'(?:[\._])(\d+)(?:[\._])', f)
+                        # 파일명에서 숫자 패턴 추출 (확장자 직전의 패딩 숫자 캡처로 오작동 방지)
+                        match = re.search(r'[\._](\d+)\.[a-zA-Z0-9]+$', f)
                         if match:
                             frame_numbers.append(int(match.group(1)))
                         else:
-                            # 끝부분에 숫자가 있는 경우 (예: shot_v01.1001.exr)
+                            # 백업: 끝부분에 숫자가 있는 경우 가장 마지막 숫자 덩어리 추출
                             match = re.findall(r'(\d+)', f)
                             if match:
                                 frame_numbers.append(int(match[-1]))
