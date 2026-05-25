@@ -89,9 +89,15 @@ def fetch_versions_from_sg(version_ids: list[int]) -> list[dict[str, Any]]:
         if source_path:
             source_dir = os.path.dirname(source_path)
             output_path = source_dir.replace("\\", "/")
+            is_movie = source_path.lower().endswith(('.mov', '.mp4', '.avi'))
             
-            # [추가] 실제 디스크 파일 스캔을 통한 프레임 계산
-            if os.path.isdir(source_dir):
+            # [최종 클린업] 동영상과 시퀀스 로직의 완전한 분리
+            if is_movie:
+                # 동영상일 경우 디스크 스캔을 하지 않고 SG 데이터 사용 (또는 기본값)
+                frame_in = v.get("sg_first_frame") or 1001
+                frame_out = v.get("sg_last_frame") or 1001
+            elif os.path.isdir(source_dir):
+                # 시퀀스일 경우에만 실제 디렉토리 스캔 수행
                 try:
                     files = os.listdir(source_dir)
                     frame_numbers = []
@@ -100,19 +106,18 @@ def fetch_versions_from_sg(version_ids: list[int]) -> list[dict[str, Any]]:
                         match = re.search(r'[\._](\d+)\.[a-zA-Z0-9]+$', f)
                         if match:
                             frame_numbers.append(int(match.group(1)))
-                        else:
-                            # 백업: 끝부분에 숫자가 있는 경우 가장 마지막 숫자 덩어리 추출
-                            match = re.findall(r'(\d+)', f)
-                            if match:
-                                frame_numbers.append(int(match[-1]))
                     
                     if frame_numbers:
                         frame_in = min(frame_numbers)
                         frame_out = max(frame_numbers)
+                    else:
+                        # 스캔 결과 숫자가 없는 경우 SG 필드 폴백
+                        frame_in = v.get("sg_first_frame") or 1001
+                        frame_out = v.get("sg_last_frame") or 1001
                 except Exception as e:
                     print(f"[SCAN] 파일 스캔 실패: {e}")
             else:
-                # 단일 파일(MOV 등)인 경우 SG 필드 사용 시도
+                # 그 외 예외적인 경우 SG 필드 사용
                 frame_in = v.get("sg_first_frame") or 1001
                 frame_out = v.get("sg_last_frame") or 1001
 
