@@ -124,26 +124,21 @@ def configure_write_node(write_node, fmt: str, codec: str, bitdepth: str):
                 pass
 
 
-def configure_ocio(ocio_path: str, cs_in: str, cs_out: str):
+def configure_ocio_root(ocio_path: str):
     if not ocio_path or not os.path.exists(ocio_path):
         print(f"[Nuke] OCIO 미지정 혹은 경로 누락: {ocio_path} — 컬러 변환 없이 진행합니다.")
-        return None
+        return False
 
     try:
         os.environ["OCIO"] = ocio_path
         nuke.root()["colorManagement"].setValue("OCIO")
         nuke.root()["OCIO_config"].setValue("custom")
         nuke.root()["customOCIOConfigPath"].setValue(ocio_path)
-        print(f"[Nuke] OCIO 활성화: {ocio_path}")
-        print(f"[Nuke] 컬러 변환: {cs_in} → {cs_out}")
-
-        cs_node = nuke.createNode("OCIOColorSpace")
-        cs_node["in_colorspace"].setValue(cs_in)
-        cs_node["out_colorspace"].setValue(cs_out)
-        return cs_node
+        print(f"[Nuke] OCIO Root 설정 활성화: {ocio_path}")
+        return True
     except Exception as e:
-        print(f"[Nuke] OCIO 노드 설정 오류: {e}")
-        return None
+        print(f"[Nuke] OCIO Root 설정 오류: {e}")
+        return False
 
 
 def resolve_source_path(args, _frame_in: int) -> str:
@@ -195,6 +190,8 @@ def main():
         print(f"[ERROR] 소스 파일을 찾을 수 없습니다: {first_frame_path}")
         sys.exit(1)
 
+    ocio_enabled = configure_ocio_root(args.ocio)
+
     read_node = nuke.createNode("Read")
     read_node["file"].setValue(src_path)
     read_node["first"].setValue(frame_in)
@@ -202,17 +199,25 @@ def main():
     read_node["origfirst"].setValue(frame_in)
     read_node["origlast"].setValue(frame_out)
 
-    last_node = read_node
-    cs_node = configure_ocio(args.ocio, args.colorspace_in, args.colorspace)
-    if cs_node:
-        cs_node.setInput(0, read_node)
-        last_node = cs_node
+    if ocio_enabled and args.colorspace_in:
+        try:
+            read_node["colorspace"].setValue(args.colorspace_in)
+            print(f"[Nuke] Read 노드 컬러 설정: {args.colorspace_in}")
+        except Exception as e:
+            print(f"[Nuke] Read 노드 컬러 설정 실패: {e}")
 
     out_path = resolve_output_path(args, fmt)
     write_node = nuke.createNode("Write")
     write_node["file"].setValue(out_path)
-    write_node.setInput(0, last_node)
+    write_node.setInput(0, read_node)
     configure_write_node(write_node, fmt, args.codec, args.bitdepth)
+
+    if ocio_enabled and args.colorspace:
+        try:
+            write_node["colorspace"].setValue(args.colorspace)
+            print(f"[Nuke] Write 노드 컬러 설정: {args.colorspace}")
+        except Exception as e:
+            print(f"[Nuke] Write 노드 컬러 설정 실패: {e}")
 
     # 출력 디렉토리 생성
     out_dir = os.path.dirname(out_path.replace("####", "0000"))
