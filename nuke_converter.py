@@ -254,14 +254,26 @@ def main():
             if gizmo_file:
                 try:
                     gizmo_node_name = os.path.basename(gizmo_file).replace(".gizmo", "")
-                    slate_node = nuke.createNode(gizmo_node_name)
+                    # 명시적으로 기즈모 로드 시도
+                    try:
+                        nuke.load(gizmo_node_name)
+                    except Exception as load_e:
+                        print(f"[WARN] nuke.load({gizmo_node_name}) 실패, 계속 진행: {load_e}")
+
+                    # 선택 해제 후 노드 생성 (안전한 연결을 위해)
+                    for n in nuke.selectedNodes():
+                        n.setSelected(False)
+                        
+                    slate_node = nuke.createNode(gizmo_node_name, inpanel=False)
                     slate_node.setInput(0, read_node)
                     last_node = slate_node
-                    print(f"[Nuke] 슬레이트 기즈모 적용: {gizmo_node_name}")
+                    print(f"[Nuke] 슬레이트 기즈모 적용 성공: {gizmo_node_name}")
                 except Exception as e:
-                    print(f"[ERROR] 슬레이트 기즈모 생성 실패: {e}")
+                    print(f"[ERROR] 슬레이트 기즈모 생성 실패 ({gizmo_node_name}): {e}")
+                    import traceback
+                    traceback.print_exc()
             else:
-                print(f"[WARN] 프로젝트({args.project})에 맞는 슬레이트 기즈모를 찾을 수 없습니다.")
+                print(f"[WARN] 프로젝트({args.project})에 맞는 슬레이트 기즈모를 찾을 수 없습니다. (검색된 파일들: {len(gizmo_list)}개)")
         else:
             print(f"[WARN] 슬레이트 기즈모 경로가 존재하지 않습니다: {gizmo_dir}")
 
