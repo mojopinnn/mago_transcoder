@@ -64,7 +64,6 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
     <div>
       <div class="sec-label" style="display:flex;justify-content:space-between;align-items:center">
         <span>SHOTGRID TARGET</span>
-        <button id="btn-open-shot-dir" class="preset-btn" style="width:auto;padding:2px 10px;display:none" onclick="openShotFolder()">📁 OPEN SHOT FOLDER</button>
       </div>
       <div class="shot-list" id="shot-list">
         <div class="no-shots">AMI에서 선택하거나 샷 이름을 수동 입력하세요.</div>
@@ -221,12 +220,6 @@ function selectShot(idx) {
   // 컬러 스페이스 자동 매칭
   autoMatchColorspace('sel-cs-in', s.colorspace_in);
   autoMatchColorspace('sel-cs-out', s.colorspace_out);
-
-  if (s.source_path) {
-    document.getElementById('btn-open-shot-dir').style.display = 'block';
-  } else {
-    document.getElementById('btn-open-shot-dir').style.display = 'none';
-  }
   
   document.querySelectorAll('.shot-card').forEach((c, i) => c.classList.toggle('selected', i === idx));
   updateOutputNameByFormat();
@@ -240,18 +233,34 @@ function restoreTemplatePath() {
   }
 }
 
-async function browseFolder() {
-  try {
-    const res = await fetch('/api/browse-folder');
-    const data = await res.json();
-    if (data.path) {
-      const s = state.shots[state.selectedIdx];
-      const version = s ? s.version_name : 'output';
-      const ext = state.format === 'mov' ? 'mov' : `####.${state.format}`;
-      document.getElementById('inp-output').value = `${data.path}/${version}.${ext}`;
-    }
-  } catch (e) { log('폴더 탐색기 호출 실패: ' + e.message, 'error'); }
+function browseFolder() {
+  const inp = document.getElementById('inp-output').value;
+  let currentDir = "";
+  if (inp) {
+    let pathStr = inp.replace(/\\/g, '/');
+    const lastSlash = pathStr.lastIndexOf('/');
+    currentDir = lastSlash !== -1 ? pathStr.substring(0, lastSlash) : pathStr;
+  }
+  
+  // 기본 경로 또는 선택된 샷의 소스 경로 기반 폴백
+  if (!currentDir && state.shots[state.selectedIdx]?.source_path) {
+    const sp = state.shots[state.selectedIdx].source_path;
+    currentDir = sp.substring(0, sp.lastIndexOf('/'));
+  }
+  
+  window.open('/view-folder?path=' + encodeURIComponent(currentDir) + '&mode=select', 'MagoBrowser', 'width=800,height=600');
 }
+
+window.receiveSelectedOutput = function(selectedDir) {
+  const s = state.shots[state.selectedIdx];
+  const version = s ? s.version_name : 'output';
+  const fmt = state.format;
+  const ext = fmt === 'mov' ? 'mov' : `####.${fmt}`;
+  
+  const cleanDir = selectedDir.replace(/\\/g, '/');
+  document.getElementById('inp-output').value = `${cleanDir}/${version}.${ext}`;
+  updateOutputNameByFormat();
+};
 
 function updateOutputNameByFormat() {
   const inp = document.getElementById('inp-output');
@@ -268,13 +277,6 @@ function updateOutputNameByFormat() {
   
   const ext = fmt === 'mov' ? 'mov' : `####.${fmt}`;
   inp.value = `${dir}/${version}.${ext}`;
-}
-
-function openShotFolder() {
-  const s = state.shots[state.selectedIdx];
-  if (!s || !s.source_path) return;
-  const folderPath = s.source_path.substring(0, s.source_path.lastIndexOf('/'));
-  window.open('/view-folder?path=' + encodeURIComponent(folderPath), '_blank');
 }
 
 function buildFormatTabs() {
