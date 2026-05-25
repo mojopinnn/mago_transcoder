@@ -133,6 +133,23 @@ async def get_colorspaces() -> JSONResponse:
     return JSONResponse({"colorspaces": get_cached_colorspaces(), "ocio_config": config.OCIO_CONFIG_PATH})
 
 
+@app.get("/api/browse-folder")
+async def browse_folder() -> JSONResponse:
+    """tkinter를 사용하여 OS 네이티브 폴더 선택 창을 띄웁니다."""
+    import tkinter as tk
+    from tkinter import filedialog
+
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        folder_path = filedialog.askdirectory(parent=root, title="출력 폴더 선택")
+        root.destroy()
+        return JSONResponse({"path": folder_path.replace("\\", "/") if folder_path else ""})
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
 @app.post("/api/open-folder")
 async def open_folder(request: Request) -> JSONResponse:
     payload = await request.json()

@@ -86,7 +86,16 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
         <button class="preset-btn" type="button" onclick="setSingleFrame()">현재 프레임만</button>
         <button class="preset-btn" type="button" onclick="setFullRange()">전체 범위</button>
       </div>
-      <div><label class="fl">Output Path (선택)</label><input type="text" id="inp-output" placeholder="/out/####.exr"></div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="fl">Output Path (선택)</label>
+          <div style="display:flex;gap:4px;margin-bottom:6px">
+            <button class="preset-btn" style="width:auto;padding:2px 8px;font-size:9px" onclick="restoreTemplatePath()">↺ 템플릿 경로 복구</button>
+            <button class="preset-btn" style="width:auto;padding:2px 8px;font-size:9px" onclick="browseFolder()">📂 찾아보기</button>
+          </div>
+        </div>
+        <input type="text" id="inp-output" placeholder="/out/####.exr">
+      </div>
     </div>
     <div class="panel">
       <div class="sec-label">OUTPUT FORMAT</div>
@@ -99,8 +108,20 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
   <div class="panel">
     <div class="sec-label">COLOR (OCIO)</div>
     <div class="cs-row">
-      <div><label class="fl">Input</label><select id="sel-cs-in"></select></div>
-      <div><label class="fl">Output</label><select id="sel-cs-out"></select></div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="fl">Input</label>
+          <button class="preset-btn" style="width:auto;padding:2px 6px;font-size:9px;margin-bottom:4px" onclick="toggleFavorite('sel-cs-in')">⭐ 즐겨찾기 토글</button>
+        </div>
+        <select id="sel-cs-in"></select>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="fl">Output</label>
+          <button class="preset-btn" style="width:auto;padding:2px 6px;font-size:9px;margin-bottom:4px" onclick="toggleFavorite('sel-cs-out')">⭐ 즐겨찾기 토글</button>
+        </div>
+        <select id="sel-cs-out"></select>
+      </div>
     </div>
     <div class="ocio-path" id="ocio-path-display"></div>
   </div>
@@ -174,25 +195,58 @@ function selectShot(idx) {
   document.getElementById('inp-frame-out').value = s.frame_out;
   document.getElementById('inp-source').value = s.source_path || '';
   
-  // 자동 출력 경로 생성 로직
+  // 서버에서 넘어온 SGTK 아웃풋 경로가 있으면 사용, 없으면 빈 값
+  document.getElementById('inp-output').value = s.output_path || '';
+  
+  // 컬러 스페이스 자동 매칭
+  autoMatchColorspace('sel-cs-in', s.colorspace_in);
+  autoMatchColorspace('sel-cs-out', s.colorspace_out);
+
   if (s.source_path) {
-    let outPath = "";
-    const sourceDir = s.source_path.substring(0, s.source_path.lastIndexOf('/'));
-    
-    // /comp/ 폴더가 있다면 그 하위에 트랜스코더 테스트 폴더 생성 제안
-    if (sourceDir.includes('/comp/')) {
-        const compBase = sourceDir.split('/comp/')[0];
-        outPath = `${compBase}/comp/nuke/write/transcoder_test/${s.shot_name || s.version_name}.####.exr`;
-    } else {
-        outPath = `${sourceDir}/transcoded/${s.shot_name || s.version_name}.####.exr`;
-    }
-    document.getElementById('inp-output').value = outPath;
     document.getElementById('btn-open-shot-dir').style.display = 'block';
   } else {
     document.getElementById('btn-open-shot-dir').style.display = 'none';
   }
   
   document.querySelectorAll('.shot-card').forEach((c, i) => c.classList.toggle('selected', i === idx));
+  updateOutputNameByFormat();
+}
+
+function restoreTemplatePath() {
+  const s = state.shots[state.selectedIdx];
+  if (s && s.output_path) {
+    document.getElementById('inp-output').value = s.output_path;
+    updateOutputNameByFormat();
+  }
+}
+
+async function browseFolder() {
+  try {
+    const res = await fetch('/api/browse-folder');
+    const data = await res.json();
+    if (data.path) {
+      const s = state.shots[state.selectedIdx];
+      const version = s ? s.version_name : 'output';
+      const ext = state.format === 'mov' ? 'mov' : `####.${state.format}`;
+      document.getElementById('inp-output').value = `${data.path}/${version}.${ext}`;
+    }
+  } catch (e) { log('폴더 탐색기 호출 실패: ' + e.message, 'error'); }
+}
+
+function updateOutputNameByFormat() {
+  const inp = document.getElementById('inp-output');
+  if (!inp.value) return;
+
+  const s = state.shots[state.selectedIdx];
+  const version = s ? s.version_name : 'output';
+  const fmt = state.format;
+  
+  let pathStr = inp.value.replace(/\\/g, '/');
+  const lastSlash = pathStr.lastIndexOf('/');
+  const dir = lastSlash !== -1 ? pathStr.substring(0, lastSlash) : '.';
+  
+  const ext = fmt === 'mov' ? 'mov' : `####.${fmt}`;
+  inp.value = `${dir}/${version}.${ext}`;
 }
 
 async function openShotFolder() {
@@ -252,6 +306,7 @@ function switchFormat(fmtId) {
   document.querySelectorAll('.fmt-tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === fmtId));
   document.querySelectorAll('.fmt-opts').forEach(b => b.classList.toggle('on', b.id === 'fmt-' + fmtId));
   updateFmtSummary();
+  updateOutputNameByFormat();
 }
 
 function updateFmtSummary() {
@@ -266,16 +321,89 @@ function updateFmtSummary() {
 }
 
 function buildColorspaceSelects() {
+  const favs = JSON.parse(localStorage.getItem('mago_fav_colorspaces') || '[]');
+  const core = ['ACES2065-1', 'ACEScg', 'ACEScct', 'V3 LogC', 'V4 LogC', 'Rec.709', 'sRGB'];
+  
   ['sel-cs-in', 'sel-cs-out'].forEach((selId, idx) => {
     const sel = document.getElementById(selId);
-    colorspaces.forEach(cs => {
+    const currentVal = sel.value;
+    sel.innerHTML = '';
+    
+    // 1그룹: 즐겨찾기
+    const gFav = document.createElement('optgroup');
+    gFav.label = '⭐ 즐겨찾기 목록';
+    favs.forEach(cs => {
       const opt = document.createElement('option');
       opt.value = cs; opt.textContent = cs;
-      if (idx === 0 && cs.toLowerCase().includes('linear')) opt.selected = true;
-      if (idx === 1 && cs.toLowerCase() === 'srgb') opt.selected = true;
-      sel.appendChild(opt);
+      gFav.appendChild(opt);
     });
+    if (favs.length) sel.appendChild(gFav);
+
+    // 2그룹: 핵심 목록
+    const gCore = document.createElement('optgroup');
+    gCore.label = '🔥 필수 핵심 컬러스페이스';
+    core.forEach(cs => {
+      const opt = document.createElement('option');
+      opt.value = cs; opt.textContent = cs;
+      gCore.appendChild(opt);
+    });
+    sel.appendChild(gCore);
+
+    // 3그룹: 나머지 전체
+    const gAll = document.createElement('optgroup');
+    gAll.label = '🌐 전체 목록';
+    colorspaces.forEach(cs => {
+      if (!core.includes(cs)) {
+        const opt = document.createElement('option');
+        opt.value = cs; opt.textContent = cs;
+        gAll.appendChild(opt);
+      }
+    });
+    sel.appendChild(gAll);
+
+    if (currentVal) sel.value = currentVal;
+    else {
+      if (idx === 0) autoMatchColorspace(selId, 'linear');
+      else autoMatchColorspace(selId, 'sRGB');
+    }
   });
+}
+
+function toggleFavorite(selId) {
+  const val = document.getElementById(selId).value;
+  if (!val) return;
+  let favs = JSON.parse(localStorage.getItem('mago_fav_colorspaces') || '[]');
+  if (favs.includes(val)) {
+    favs = favs.filter(f => f !== val);
+  } else {
+    favs.push(val);
+  }
+  localStorage.setItem('mago_fav_colorspaces', JSON.stringify(favs));
+  buildColorspaceSelects();
+}
+
+function autoMatchColorspace(selId, targetCs) {
+  if (!targetCs) return;
+  const sel = document.getElementById(selId);
+  const options = Array.from(sel.options);
+  
+  const simplify = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const targetSimple = simplify(targetCs);
+  
+  // 1순위: 완전 일치
+  let matched = options.find(o => o.value === targetCs);
+  // 2순위: 단순화 비교 일치
+  if (!matched) {
+    matched = options.find(o => simplify(o.value) === targetSimple);
+  }
+  // 3순위: 포함 관계
+  if (!matched) {
+    matched = options.find(o => simplify(o.value).includes(targetSimple) || targetSimple.includes(simplify(o.value)));
+  }
+
+  if (matched) {
+    sel.value = matched.value;
+  }
 }
 
 function setSingleFrame() {
