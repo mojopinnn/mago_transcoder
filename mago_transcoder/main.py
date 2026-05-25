@@ -271,6 +271,7 @@ async def view_folder(path: str = Query(""), mode: str = Query("")) -> Any:
                 let selectedName = "";
                 let selectedFullPath = "";
                 let renameMode = false;
+                let clickTimer = null;
 
                 function showNewFolderInput() {{
                     if (document.getElementById('new-folder-row')) return;
@@ -306,8 +307,7 @@ async def view_folder(path: str = Query(""), mode: str = Query("")) -> Any:
                                 const data = await response.json();
                                 if (data.status === 'error') {{
                                     alert(data.message);
-                                    input.focus();
-                                    input.select();
+                                    row.remove();
                                     return;
                                 }}
                                 location.reload();
@@ -360,8 +360,16 @@ async def view_folder(path: str = Query(""), mode: str = Query("")) -> Any:
                     e.preventDefault();
                     if (renameMode) return;
 
+                    if (clickTimer) {{
+                        clearTimeout(clickTimer);
+                    }}
+
                     if (selectedItem === itemEl) {{
-                        startRename();
+                        // 타이머를 걸어 더블클릭 여부 판별 후 리네임 모드 진입
+                        clickTimer = setTimeout(() => {{
+                            startRename();
+                            clickTimer = null;
+                        }}, 250);
                     }} else {{
                         if (selectedItem) selectedItem.classList.remove('focused-folder');
                         selectedItem = itemEl;
@@ -374,6 +382,12 @@ async def view_folder(path: str = Query(""), mode: str = Query("")) -> Any:
                 function handleItemDblClick(e, url) {{
                     e.preventDefault();
                     if (renameMode) return;
+
+                    // 더블클릭 시 클릭 타이머 강제 취소
+                    if (clickTimer) {{
+                        clearTimeout(clickTimer);
+                        clickTimer = null;
+                    }}
                     location.href = url;
                 }}
 
