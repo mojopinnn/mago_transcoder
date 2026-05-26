@@ -231,51 +231,45 @@ def main():
 
     # 2. 슬레이트 기즈모 로드 및 연결
     last_node = read_node
-    if args.slate:
+
+    if args.slate and args.project:
+        gizmo_file = None
+        gizmo_node_name = ""
+
         gizmo_dir = "/storage/inhouse/env/nuke/NukeShared/Repository/Nodes/MAGO/Slate"
         if os.path.exists(gizmo_dir):
             nuke.pluginAddPath(gizmo_dir)
-            gizmo_list = glob.glob(os.path.join(gizmo_dir, "*.gizmo"))
+            gizmo_list = glob.glob(os.path.join(gizmo_dir, f"*{args.project}*.gizmo"))
 
-            gizmo_file = None
-            # nocolor 버전 우선 탐색
             for g in gizmo_list:
-                if f"slate_{args.project}_nocolor" in g:
+                if "nocolor" in g:
                     gizmo_file = g
                     break
-            
-            # 일반 버전 탐색
-            if gizmo_file is None:
-                for g in gizmo_list:
-                    if f"slate_{args.project}" in g:
-                        gizmo_file = g
-                        break
-            
-            if gizmo_file:
-                try:
-                    gizmo_node_name = os.path.basename(gizmo_file).replace(".gizmo", "")
-                    # 명시적으로 기즈모 로드 시도
-                    try:
-                        nuke.load(gizmo_node_name)
-                    except Exception as load_e:
-                        print(f"[WARN] nuke.load({gizmo_node_name}) 실패, 계속 진행: {load_e}")
 
-                    # 선택 해제 후 노드 생성 (안전한 연결을 위해)
-                    for n in nuke.selectedNodes():
-                        n.setSelected(False)
-                        
-                    slate_node = nuke.createNode(gizmo_node_name, inpanel=False)
-                    slate_node.setInput(0, read_node)
-                    last_node = slate_node
-                    print(f"[Nuke] 슬레이트 기즈모 적용 성공: {gizmo_node_name}")
-                except Exception as e:
-                    print(f"[ERROR] 슬레이트 기즈모 생성 실패 ({gizmo_node_name}): {e}")
-                    import traceback
-                    traceback.print_exc()
-            else:
-                print(f"[WARN] 프로젝트({args.project})에 맞는 슬레이트 기즈모를 찾을 수 없습니다. (검색된 파일들: {len(gizmo_list)}개)")
+            if not gizmo_file and gizmo_list:
+                gizmo_file = gizmo_list[0]
+
+        if gizmo_file and os.path.exists(gizmo_file):
+            gizmo_node_name = os.path.basename(gizmo_file).replace(".gizmo", "")
+            try:
+                try:
+                    nuke.load(gizmo_node_name)
+                except Exception as load_e:
+                    print(f"[WARN] nuke.load 무시: {load_e}")
+
+                for n in nuke.selectedNodes():
+                    n.setSelected(False)
+
+                slate_node = nuke.createNode(gizmo_node_name, inpanel=False)
+                slate_node.setInput(0, read_node)
+
+                last_node = slate_node
+                print(f"[Nuke] {args.project} 프로젝트 슬레이트 기즈모 적용 성공: {gizmo_node_name}")
+
+            except Exception as e:
+                print(f"[ERROR] 슬레이트 노드 생성 실패: {e}")
         else:
-            print(f"[WARN] 슬레이트 기즈모 경로가 존재하지 않습니다: {gizmo_dir}")
+            print(f"[ERROR] 프로젝트({args.project})용 슬레이트 기즈모를 찾을 수 없습니다. (경로: {gizmo_dir})")
 
     write_node = nuke.createNode("Write")
     write_node["file"].setValue(out_path)

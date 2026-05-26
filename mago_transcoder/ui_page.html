@@ -553,12 +553,8 @@ async function handleRun() {
   const enableCustomVer = document.getElementById('enable_custom_slate_ver').checked;
   const customSlateVer = document.getElementById('slate_version').value;
   
-  // Project 파싱 (예: DHA_1430 -> dha)
-  let projectCode = "";
-  if (shotName) {
-    const parts = shotName.split('_');
-    if (parts.length > 0) projectCode = parts[0].toLowerCase();
-  }
+  const s = state.shots[state.selectedIdx];
+  const projectCode = s && s.project ? s.project.toLowerCase() : "";
 
   try {
     const res = await fetch('/api/render', {
