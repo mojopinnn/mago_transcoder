@@ -69,14 +69,15 @@ def fetch_versions_from_sg(version_ids: list[int]) -> list[dict[str, Any]]:
             shot_data = sg.find_one(
                 "Shot",
                 [["id", "is", shot_id]],
-                ["sg_cut_in", "sg_cut_out", "code", "sg_in_plate_colorspace", "sg_out_plate_colorspace"],
+                ["sg_cut_in", "sg_cut_out", "code", "sg_out_plate_colorspace", "sg_mov_colorspace"],
             )
             if shot_data:
                 frame_in = shot_data.get("sg_cut_in") or frame_in
                 frame_out = shot_data.get("sg_cut_out") or frame_out
                 shot_name = shot_data.get("code", shot_name)
-                cs_in = shot_data.get("sg_in_plate_colorspace") or ""
-                cs_out = shot_data.get("sg_out_plate_colorspace") or ""
+                cs_in = shot_data.get("sg_out_plate_colorspace") or ""
+                cs_out = shot_data.get("sg_mov_colorspace") or ""
+
 
         # 컬러 폴백 로직: 아웃풋이 비어있으면 인풋 복사
         if cs_in and not cs_out:
@@ -148,13 +149,14 @@ def fetch_shots_from_sg(shot_ids: list[int]) -> list[dict[str, Any]]:
 
     fields = [
         "id", "code", "sg_cut_in", "sg_cut_out", "project", "image", 
-        "sg_status_list", "sg_in_plate_colorspace", "sg_out_plate_colorspace"
+        "sg_status_list", "sg_out_plate_colorspace", "sg_mov_colorspace"
     ]
     shots = sg.find("Shot", [["id", "in", shot_ids]], fields)
     results: list[dict[str, Any]] = []
     for s in shots:
-        cs_in = s.get("sg_in_plate_colorspace") or ""
-        cs_out = s.get("sg_out_plate_colorspace") or ""
+        cs_in = s.get("sg_out_plate_colorspace") or ""
+        cs_out = s.get("sg_mov_colorspace") or ""
+
         
         if cs_in and not cs_out:
             cs_out = cs_in

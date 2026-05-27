@@ -4,49 +4,90 @@
 <meta charset="UTF-8">
 <title>MAGO TRANSCODER</title>
 <style>
-:root{--bg:#0b0d11;--panel:#13171c;--card:#1a1f26;--border:rgba(255,255,255,0.06);--accent:#3b82f6;--accent2:#6366f1;--text:#d1d5db;--dim:#6b7280;--success:#10b981;--error:#ef4444;--warn:#f59e0b}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;min-height:100vh;padding:24px}
-.wrap{max-width:1060px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
-.header{display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid var(--border)}
-.logo{display:flex;align-items:center;gap:12px}
-.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff}
-.sec-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.18em;color:var(--accent);margin-bottom:8px}
-.shot-list{display:flex;flex-direction:column;gap:8px}
-.shot-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center;cursor:pointer}
-.shot-card.selected{border-color:rgba(59,130,246,.45);background:rgba(59,130,246,.05)}
-.shot-thumb{width:72px;height:44px;border-radius:7px;background:rgba(255,255,255,.04);object-fit:cover;font-size:8px;display:flex;align-items:center;justify-content:center;color:var(--dim)}
-.shot-name{font-weight:700;font-size:14px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.shot-meta{font-size:11px;color:var(--dim);margin-top:3px}
-.shot-path{font-size:10px;color:#374151;margin-top:2px;font-family:monospace;overflow:hidden;text-overflow:ellipsis}
-.panels{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px}
-label.fl{font-size:10px;color:var(--dim);display:block;margin-bottom:6px;text-transform:uppercase}
-input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-size:13px;font-family:monospace}
-.fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.preset-row{display:flex;gap:6px}
-.preset-btn{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--border);color:var(--dim);padding:8px;border-radius:8px;cursor:pointer;font-size:11px}
-.tab-row{display:flex;gap:6px;flex-wrap:wrap}
-.fmt-tab{background:rgba(255,255,255,.03);border:1px solid var(--border);color:var(--dim);padding:5px 14px;border-radius:20px;font-size:11px;cursor:pointer}
-.fmt-tab.active{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.4);color:#fff}
-.fmt-opts{display:none;flex-direction:column;gap:12px}
-.fmt-opts.on{display:flex}
-.bit-group{display:flex;gap:6px;flex-wrap:wrap}
-.bit-btn{flex:1;min-width:60px;background:rgba(255,255,255,.03);border:1px solid var(--border);padding:9px;border-radius:8px;font-size:11px;cursor:pointer;text-align:center}
-.bit-btn.active{background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.4);color:#a5b4fc}
-.fmt-summary{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:#93c5fd}
-.run-btn{width:100%;padding:16px;border:none;border-radius:12px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
-.run-btn.cancel{background:linear-gradient(135deg,#ef4444,#b91c1c)}
-.console{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-.console-hdr{padding:10px 18px;background:rgba(0,0,0,.3);border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
-#log-area{padding:16px;min-height:180px;max-height:300px;overflow-y:auto;font-family:Consolas,monospace;font-size:11px;color:#94a3b8}
-.log-success{color:var(--success);font-weight:700}.log-info{color:var(--accent)}.log-warn{color:var(--warn)}.log-error{color:var(--error)}.log-cmd{color:#a78bfa}.log-dim{color:#374151;font-style:italic}
-.cs-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.ocio-path{font-size:10px;color:#374151;font-family:monospace;margin-top:4px}
-.status-pill{font-size:11px;color:var(--success);font-weight:600}
-.no-shots{color:var(--dim);font-size:12px;font-style:italic;padding:14px}
-.badge{font-size:10px;padding:2px 8px;border-radius:20px;margin-left:6px;border:1px solid rgba(59,130,246,.25);color:#60a5fa}
+:root {
+  --bg: #F5F4EE;            /* 부?�럽�??�뜻???�이보리 바탕 */
+  --panel: #FFFFFF;         /* 깔끔???�이???�널 */
+  --card: #FDFDFB;          /* ?�장??카드 배경 */
+  --border: #D8D7CF;        /* ?�?�???�리�??�트가 ?�는 ?�이?�웃 ??*/
+  --input-border: #B6B8A9;  /* ?�풋 박스 명확??경계 ??*/
+  --accent: #556B2F;        /* ?�크 ?�리브그�?(?�심 ?�인??컬러) */
+  --accent-hover: #3E4F22;  /* 버튼 ?�버 ??깊이�??�는 ?�리�?*/
+  --text: #2C2C2A;          /* 가?�성???��? ?�두??그레???�리�??�스??*/
+  --dim: #7A7C73;           /* 보조 ?�명??뮤트 ?�리브그?�이 */
+  --success: #3D7A5A;       /* 차분??그린 */
+  --error: #A94442;         /* 명확??경고 ?�드 */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; padding: 24px; }
+
+/* 1060px ?�약???�제?�고 모니??가�??�상?��? �?채우???�?�드 ?��????�장 */
+.wrap { max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+.header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 2px solid var(--accent); }
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 40px; height: 40px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #FFF; }
+.sec-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin-bottom: 10px; border-left: 3px solid var(--accent); padding-left: 6px; }
+
+.shot-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.shot-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; display: grid; grid-template-columns: 80px 1fr; gap: 16px; align-items: center; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+.shot-card.selected { border-color: var(--accent); background: #FAF9F3; box-shadow: 0 0 0 1px var(--accent); }
+.shot-thumb { width: 80px; height: 48px; border-radius: 6px; background: #EFEFE9; object-fit: cover; }
+.shot-name { font-weight: 700; font-size: 15px; color: #000; }
+.shot-meta { font-size: 12px; color: var(--dim); margin-top: 3px; }
+.shot-path { font-size: 11px; color: var(--dim); margin-top: 2px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+
+label.fl { font-size: 11px; font-weight: 700; color: var(--dim); display: block; margin-bottom: 6px; text-transform: uppercase; }
+
+/* 경로 ?�드가 ?�리지 ?�도�?100% 가로폭???�보?�는 ?�독 가로행 구조 */
+.full-width-group { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+
+input[type=text], select { width: 100%; background: #FCFCFA; border: 1px solid var(--input-border); border-radius: 6px; padding: 10px 12px; color: #000; font-size: 13px; font-family: monospace; transition: border-color 0.2s; }
+input[type=text]:focus, select:focus { border-color: var(--accent); outline: none; background: #FFF; }
+
+.fg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.tab-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.fmt-tab { background: #EFEFE9; border: 1px solid var(--border); color: var(--dim); padding: 6px 16px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
+.fmt-tab.active { background: var(--accent); border-color: var(--accent); color: #FFF; }
+.fmt-opts { display: none; flex-direction: column; gap: 12px; }
+.fmt-opts.on { display: flex; }
+
+.bit-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.bit-btn { flex: 1; min-width: 60px; background: #EFEFE9; border: 1px solid var(--border); padding: 9px; border-radius: 6px; font-size: 11px; cursor: pointer; text-align: center; color: var(--dim); font-weight: bold; }
+.bit-btn.active { background: #E6E8DE; border-color: var(--accent); color: var(--accent); }
+
+.fmt-summary { background: #FAF9F3; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px; color: var(--accent); font-weight: bold; }
+
+.run-btn { width: 100%; padding: 18px; border: none; border-radius: 10px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; cursor: pointer; background: var(--accent); color: #FFF; font-size: 15px; transition: background 0.2s; }
+.run-btn:hover { background: var(--accent-hover); }
+.run-btn.cancel { background: var(--error); }
+
+.console { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.console-hdr { padding: 12px 18px; background: #F5F4EE; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+#log-area { padding: 16px; min-height: 180px; max-height: 350px; overflow-y: auto; font-family: Consolas, monospace; font-size: 12px; color: #4A4A46; background: #FAF9F3; }
+
+.log-success { color: var(--success); font-weight: 700; }
+.log-info { color: #2E5C8A; font-weight: 700; }
+.log-warn { color: #B37D14; }
+.log-error { color: var(--error); font-weight: 700; }
+.log-cmd { color: #6A5ACD; }
+.log-dim { color: #A0A09A; font-style: italic; }
+
+.cs-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ocio-path { font-size: 11px; color: var(--dim); font-family: monospace; margin-top: 4px; }
+.status-pill { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.05em; }
+.badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; margin-left: 6px; background: #E6E8DE; border: 1px solid var(--border); color: var(--accent); font-weight: bold; }
+
+/* ?�련??�?��???�드 ?�인???�자??*/
+.accent-red { color: #C0392B; font-size: 10px; font-weight: 700; text-transform: none; margin-left: 4px; font-family: system-ui, sans-serif; }
+select optgroup { font-weight: bold; color: var(--accent); background: #FFF; }
+select option { color: #000; font-weight: normal; }
 </style>
+
 </head>
 <body>
 <div class="wrap">
@@ -58,7 +99,7 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
         <div style="font-size:10px;color:var(--dim)">SHOTGRID AMI · NUKE</div>
       </div>
     </div>
-    <div class="status-pill">● READY</div>
+    <div class="status-pill">??READY</div>
   </div>
 
     <div>
@@ -66,7 +107,7 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
         <span>SHOTGRID TARGET</span>
       </div>
       <div class="shot-list" id="shot-list">
-        <div class="no-shots">AMI에서 선택하거나 샷 이름을 수동 입력하세요.</div>
+        <div class="no-shots">AMI?�서 ?�택?�거?????�름???�동 ?�력?�세??</div>
       </div>
     </div>
 
@@ -92,15 +133,15 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
         <label for="chk-single-frame" style="font-size:11px;color:var(--dim);cursor:pointer">Single Frame 모드</label>
       </div>
       <div class="preset-row">
-        <button class="preset-btn" type="button" onclick="setSingleFrame()">현재 프레임만</button>
-        <button class="preset-btn" type="button" onclick="setFullRange()">전체 범위</button>
+        <button class="preset-btn" type="button" onclick="setSingleFrame()">?�재 ?�레?�만</button>
+        <button class="preset-btn" type="button" onclick="setFullRange()">?�체 범위</button>
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <label class="fl">Output Path (선택)</label>
+          <label class="fl">Output Path (?�택)</label>
           <div style="display:flex;gap:4px;margin-bottom:6px">
-            <button class="preset-btn" style="width:auto;padding:2px 8px;font-size:9px" onclick="restoreTemplatePath()">↺ 템플릿 경로 복구</button>
-            <button class="preset-btn" style="width:auto;padding:2px 8px;font-size:9px" onclick="browseFolder()">📂 찾아보기</button>
+            <button class="preset-btn" style="width:auto;padding:2px 8px;font-size:9px" onclick="restoreTemplatePath()">???�플�?경로 복구</button>
+            <button class="preset-btn" style="width:auto;padding:2px 8px;font-size:9px" onclick="browseFolder()">?�� 찾아보기</button>
           </div>
         </div>
         <input type="text" id="inp-output" placeholder="/out/####.exr">
@@ -116,17 +157,17 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
         <div style="display:flex; align-items:center; gap:12px;">
           <div style="display:flex; align-items:center; gap:6px;">
             <input type="checkbox" id="use_slate" style="width:14px; height:14px; cursor:pointer;">
-            <label for="use_slate" style="font-size:12px; font-weight:700; color:#fff; cursor:pointer;">슬레이트 포함</label>
+            <label for="use_slate" style="font-size:12px; font-weight:700; color:#fff; cursor:pointer;">?�레?�트 ?�함</label>
           </div>
           <div style="display:flex; align-items:center; gap:6px;">
             <input type="checkbox" id="enable_custom_slate_ver" style="width:14px; height:14px; cursor:pointer;" onchange="toggleSlateVersionInput()">
             <label for="enable_custom_slate_ver" style="font-size:12px; color:var(--dim); cursor:pointer;">slate ver.</label>
-            <input type="text" id="slate_version" disabled placeholder="버전 입력" style="width:80px; padding:4px 8px; font-size:11px; height:26px;">
+            <input type="text" id="slate_version" disabled placeholder="버전 ?�력" style="width:80px; padding:4px 8px; font-size:11px; height:26px;">
           </div>
         </div>
       </div>
 
-      <div class="fmt-summary" id="fmt-summary-val">—</div>
+      <div class="fmt-summary" id="fmt-summary-val">??/div>
     </div>
   </div>
 
@@ -136,20 +177,19 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <label class="fl">Input</label>
-          <button class="preset-btn" style="width:auto;padding:2px 6px;font-size:9px;margin-bottom:4px" onclick="toggleFavorite('sel-cs-in')">⭐ 즐겨찾기 토글</button>
         </div>
         <select id="sel-cs-in"></select>
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <label class="fl">Output</label>
-          <button class="preset-btn" style="width:auto;padding:2px 6px;font-size:9px;margin-bottom:4px" onclick="toggleFavorite('sel-cs-out')">⭐ 즐겨찾기 토글</button>
         </div>
         <select id="sel-cs-out"></select>
       </div>
     </div>
     <div class="ocio-path" id="ocio-path-display"></div>
   </div>
+
 
   <button class="run-btn" id="run-btn" type="button" onclick="handleRun()">RENDER</button>
   
@@ -168,7 +208,7 @@ input[type=text],select{width:100%;background:rgba(0,0,0,.4);border:1px solid va
       <span style="font-size:10px;color:var(--accent);font-weight:700">LIVE CONSOLE</span>
       <span id="console-status" style="font-size:10px;color:var(--dim)">IDLE</span>
     </div>
-    <div id="log-area"><div class="log-dim">// 연결 대기… 브라우저를 닫으면 작업이 취소됩니다.</div></div>
+    <div id="log-area"><div class="log-dim">// ?�결 ?�기�?브라?��?�??�으�??�업??취소?�니??</div></div>
   </div>
 </div>
 
@@ -199,7 +239,7 @@ async function fetchShotData() {
       renderShotList();
       selectShot(0);
     }
-  } catch (e) { log('ShotGrid 로드 실패: ' + e.message, 'error'); }
+  } catch (e) { log('ShotGrid 로드 ?�패: ' + e.message, 'error'); }
 }
 
 function renderShotList() {
@@ -216,8 +256,8 @@ function renderShotList() {
     card.innerHTML = thumb + `<div><div class="shot-row1" style="display:flex;justify-content:space-between;gap:8px">
       <span class="shot-name">${s.shot_name || s.version_name}</span>
       ${s.project ? `<span class="badge">${s.project}</span>` : ''}</div>
-      <div class="shot-meta">${s.version_name} · ${s.frame_in}–${s.frame_out}</div>
-      <div class="shot-path">${s.source_path || '(소스 없음)'}</div></div>`;
+      <div class="shot-meta">${s.version_name} · ${s.frame_in}??{s.frame_out}</div>
+      <div class="shot-path">${s.source_path || '(?�스 ?�음)'}</div></div>`;
     el.appendChild(card);
   });
 }
@@ -230,14 +270,14 @@ function selectShot(idx) {
   document.getElementById('inp-frame-out').value = s.frame_out;
   document.getElementById('inp-source').value = s.source_path || '';
   
-  // 서버에서 넘어온 아웃풋 폴더 경로가 있으면 사용, 없으면 빈 값 (가짜 텍스트 노출 차단)
+  // ?�버?�서 ?�어???�웃???�더 경로가 ?�으�??�용, ?�으�?�?�?(가�??�스???�출 차단)
   document.getElementById('inp-output').value = s.output_path || '';
   
-  // 컬러 스페이스 자동 매칭
+  // 컬러 ?�페?�스 ?�동 매칭
   autoMatchColorspace('sel-cs-in', s.colorspace_in);
   autoMatchColorspace('sel-cs-out', s.colorspace_out);
   
-  // 버전 자동 추출 및 Slate Placeholder 설정
+  // 버전 ?�동 추출 �?Slate Placeholder ?�정
   updateSlateVersionPlaceholder(s.version_name || s.shot_name || '');
 
   document.querySelectorAll('.shot-card').forEach((c, i) => c.classList.toggle('selected', i === idx));
@@ -250,7 +290,7 @@ function updateSlateVersionPlaceholder(text) {
   if (verMatch) {
     slateInput.placeholder = verMatch[0];
   } else {
-    slateInput.placeholder = "버전 입력";
+    slateInput.placeholder = "버전 ?�력";
   }
 }
 
@@ -282,7 +322,7 @@ function browseFolder() {
     currentDir = lastSlash !== -1 ? pathStr.substring(0, lastSlash) : pathStr;
   }
   
-  // 기본 경로 또는 선택된 샷의 소스 경로 기반 폴백
+  // 기본 경로 ?�는 ?�택???�의 ?�스 경로 기반 ?�백
   if (!currentDir && state.shots[state.selectedIdx]?.source_path) {
     const sp = state.shots[state.selectedIdx].source_path;
     currentDir = sp.substring(0, sp.lastIndexOf('/'));
@@ -304,7 +344,7 @@ window.receiveSelectedOutput = function(selectedDir) {
 
 function updateOutputNameByFormat() {
   const inp = document.getElementById('inp-output');
-  // 경로가 없거나 유효하지 않으면 자동 갱신 건너뜀
+  // 경로가 ?�거???�효?��? ?�으�??�동 갱신 건너?�
   if (!inp.value || inp.value === '.' || inp.value === '/') return;
 
   const s = state.shots[state.selectedIdx];
@@ -377,7 +417,6 @@ function updateFmtSummary() {
 }
 
 function buildColorspaceSelects() {
-  const favs = JSON.parse(localStorage.getItem('mago_fav_colorspaces') || '[]');
   const core = [
     'ACES - ACES2065-1',
     'ACES - ACEScg',
@@ -394,19 +433,9 @@ function buildColorspaceSelects() {
     const currentVal = sel.value;
     sel.innerHTML = '';
     
-    // 1그룹: 즐겨찾기
-    const gFav = document.createElement('optgroup');
-    gFav.label = '⭐ 즐겨찾기 목록';
-    favs.forEach(cs => {
-      const opt = document.createElement('option');
-      opt.value = cs; opt.textContent = cs;
-      gFav.appendChild(opt);
-    });
-    if (favs.length) sel.appendChild(gFav);
-
-    // 2그룹: 핵심 목록
+    // Favorite 그룹???�성
     const gCore = document.createElement('optgroup');
-    gCore.label = '🔥 필수 핵심 컬러스페이스';
+    gCore.label = 'Favorite';
     core.forEach(cs => {
       const opt = document.createElement('option');
       opt.value = cs; opt.textContent = cs;
@@ -414,9 +443,15 @@ function buildColorspaceSelects() {
     });
     sel.appendChild(gCore);
 
-    // 3그룹: 나머지 전체
+    // 깔끔???�스???�인 구분??명시
+    const separator = document.createElement('option');
+    separator.disabled = true;
+    separator.textContent = '?�?�?�?�?�?�?�?�?�?�?�?�?�?�';
+    sel.appendChild(separator);
+
+    // All Colorspaces 그룹???�성
     const gAll = document.createElement('optgroup');
-    gAll.label = '🌐 전체 목록';
+    gAll.label = 'All Colorspaces';
     colorspaces.forEach(cs => {
       if (!core.includes(cs)) {
         const opt = document.createElement('option');
@@ -427,41 +462,24 @@ function buildColorspaceSelects() {
     sel.appendChild(gAll);
 
     if (currentVal) sel.value = currentVal;
-    else {
-      if (idx === 0) autoMatchColorspace(selId, 'linear');
-      else autoMatchColorspace(selId, 'sRGB');
-    }
   });
-}
-
-function toggleFavorite(selId) {
-  const val = document.getElementById(selId).value;
-  if (!val) return;
-  let favs = JSON.parse(localStorage.getItem('mago_fav_colorspaces') || '[]');
-  if (favs.includes(val)) {
-    favs = favs.filter(f => f !== val);
-  } else {
-    favs.push(val);
-  }
-  localStorage.setItem('mago_fav_colorspaces', JSON.stringify(favs));
-  buildColorspaceSelects();
 }
 
 function autoMatchColorspace(selId, targetCs) {
   if (!targetCs) return;
+
   const sel = document.getElementById(selId);
   const options = Array.from(sel.options);
   
   const simplify = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
   const targetSimple = simplify(targetCs);
-  
-  // 1순위: 완전 일치
+
   let matched = options.find(o => o.value === targetCs);
-  // 2순위: 단순화 비교 일치
+  // 2?�위: ?�순??비교 ?�치
   if (!matched) {
     matched = options.find(o => simplify(o.value) === targetSimple);
   }
-  // 3순위: 포함 관계
+  // 3?�위: ?�함 관�?
   if (!matched) {
     matched = options.find(o => simplify(o.value).includes(targetSimple) || targetSimple.includes(simplify(o.value)));
   }
@@ -488,10 +506,11 @@ function toggleSingleFrameMode() {
 }
 
 function setSingleFrame() {
-  // 기존 버튼 기능 유지하되 체크박스 상태와 연동
+
+  // 기존 버튼 기능 ?��??�되 체크박스 ?�태?� ?�동
   const fin = document.getElementById('inp-frame-in').value || '1001';
   document.getElementById('inp-frame-out').value = fin;
-  // 만약 체크박스가 안되어 있다면 체크해주기 (사용자 의도 반영)
+  // 만약 체크박스가 ?�되???�다�?체크?�주�?(?�용???�도 반영)
   if (!document.getElementById('chk-single-frame').checked) {
     document.getElementById('chk-single-frame').checked = true;
     toggleSingleFrameMode();
@@ -508,7 +527,7 @@ function setFullRange() {
 async function handleRun() {
   const btn = document.getElementById('run-btn');
   if (state.abortCtrl) {
-    log('중단 요청…', 'warn');
+    log('중단 ?�청??, 'warn');
     state.abortCtrl.abort();
     return;
   }
@@ -526,12 +545,12 @@ async function handleRun() {
   const frames = frameIn === frameOut ? frameIn : `${frameIn}-${frameOut}`;
 
   document.getElementById('log-area').innerHTML = '';
-  document.getElementById('console-status').textContent = '● RUNNING';
+  document.getElementById('console-status').textContent = '??RUNNING';
   btn.textContent = 'CANCEL PROCESS';
   btn.classList.add('cancel');
   state.abortCtrl = new AbortController();
   
-  // 프로그레스 바 초기화
+  // ?�로그레??�?초기??
   const progContainer = document.getElementById('progress-container');
   const progBar = document.getElementById('progress-bar');
   const progText = document.getElementById('progress-text');
@@ -544,8 +563,8 @@ async function handleRun() {
   progText.style.color = 'var(--dim)';
   progPercent.textContent = '0%';
 
-  log(`시작 → ${shotName} | ${frames} | ${fmt.toUpperCase()}`, 'info');
-  log(`컬러: ${csIn} → ${csOut}`, 'info');
+  log(`?�작 ??${shotName} | ${frames} | ${fmt.toUpperCase()}`, 'info');
+  log(`컬러: ${csIn} ??${csOut}`, 'info');
 
   btn.textContent = 'CANCEL';
   // Slate Data
@@ -591,7 +610,7 @@ async function handleRun() {
             progBar.style.background = 'var(--error)';
             progText.textContent = 'ERROR OCCURRED';
             progText.style.color = 'var(--error)';
-            // 에러 시 강제 연결 종료 유도
+            // ?�러 ??강제 ?�결 종료 ?�도
             if (state.abortCtrl) state.abortCtrl.abort();
           }
           else if (l.includes('[success]')) {
@@ -615,7 +634,7 @@ async function handleRun() {
       });
     }
   } catch (err) {
-    log(err.name === 'AbortError' ? '취소됨.' : ('오류: ' + err.message), 'error');
+    log(err.name === 'AbortError' ? '취소??' : ('?�류: ' + err.message), 'error');
   } finally {
     state.abortCtrl = null;
     btn.textContent = 'RENDER';

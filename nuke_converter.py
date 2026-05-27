@@ -199,9 +199,22 @@ def main():
 
     out_path = resolve_output_path(args, fmt)
 
-    # 1. 가상 스크립트 이름 주입 (Nuke Root 속이기)
+    # 1. 가상 스크립트 이름 주입 및 Root 프레임 레인지 설정 (Nuke Root 속이기)
+
+    # [수정 1] 듀레이션 버그 픽스: Nuke Root의 전역 프레임 범위를 실제 렌더 범위로 강제 고정
+    try:
+        nuke.root()["first_frame"].setValue(frame_in)
+        nuke.root()["last_frame"].setValue(frame_out)
+        print(f"[Nuke] Root 프레임 범위 설정: {frame_in} - {frame_out}")
+    except Exception as e:
+        print(f"[Nuke] Root 프레임 범위 설정 실패: {e}")
+
     if args.slate:
         base_name = os.path.splitext(os.path.basename(out_path))[0]
+
+        # [수정 2] 시퀀스 파일명 버그 픽스: 경로에 포함된 #### 또는 %04d 패딩 기호 제거
+        base_name = re.sub(r"[\._](####|%04d)", "", base_name)
+
         # 버전 치환 로직 (v011 -> v002 등)
         if args.slate_version:
             # v로 시작하고 숫자가 붙은 패턴을 찾아 치환
