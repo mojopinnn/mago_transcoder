@@ -607,8 +607,9 @@ async function handleRun() {
     
     var csIn = document.getElementById('sel-cs-in').value;
     var csOut = document.getElementById('sel-cs-out').value;
+    var isSingle = document.getElementById('chk-single-frame') ? document.getElementById('chk-single-frame').checked : false;
     var frameIn = document.getElementById('inp-frame-in').value || '1001';
-    var frameOut = document.getElementById('inp-frame-out').value || frameIn;
+    var frameOut = isSingle ? frameIn : (document.getElementById('inp-frame-out').value || frameIn);
     var shotName = document.getElementById('inp-shot').value || 'Manual';
     var srcPath = document.getElementById('inp-source').value || '';
     var outPath = document.getElementById('inp-output').value || '';

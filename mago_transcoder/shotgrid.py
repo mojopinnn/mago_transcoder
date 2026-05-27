@@ -31,6 +31,21 @@ def create_sg_connection():  # type: ignore[no-untyped-def]
         return None
 
 
+_PROJECT_CS_CACHE: dict[int, str] = {}
+
+
+def get_project_colorspace(sg, project_id: int) -> str:
+    if project_id in _PROJECT_CS_CACHE:
+        return _PROJECT_CS_CACHE[project_id]
+    try:
+        proj = sg.find_one("Project", [["id", "is", project_id]], ["sg_out_plate_colorspace"])
+        cs = proj.get("sg_out_plate_colorspace") if proj else ""
+        _PROJECT_CS_CACHE[project_id] = cs or ""
+        return _PROJECT_CS_CACHE[project_id]
+    except Exception:
+        return ""
+
+
 def fetch_versions_from_sg(version_ids: list[int]) -> list[dict[str, Any]]:
     sg = create_sg_connection()
     if not sg:
@@ -52,6 +67,12 @@ def fetch_versions_from_sg(version_ids: list[int]) -> list[dict[str, Any]]:
         cs_in = ""
         cs_out = ""
 
+        # 프로젝트 레벨 컬러스페이스 캐시 확인
+        proj_cs = ""
+        proj_link = v.get("project")
+        if proj_link:
+            proj_cs = get_project_colorspace(sg, proj_link["id"])
+
         if v.get("entity"):
             shot_entity = v["entity"]
             shot_id = shot_entity["id"]
@@ -67,10 +88,16 @@ def fetch_versions_from_sg(version_ids: list[int]) -> list[dict[str, Any]]:
                 frame_out = shot_data.get("sg_cut_out") or frame_out
                 shot_name = shot_data.get("code", shot_name)
                 
-                # [유저 요청 반영] Input/Output 모두 out_plate_colorspace를 디폴트로 사용
-                plate_cs = shot_data.get("sg_out_plate_colorspace") or ""
+                # [유저 요청 반영] Input/Output 모두 out_plate_colorspace를 디폴트로 사용 (없으면 프로젝트 수준 컬러스페이스)
+                plate_cs = shot_data.get("sg_out_plate_colorspace") or proj_cs
                 cs_in = plate_cs
                 cs_out = plate_cs
+            else:
+                cs_in = proj_cs
+                cs_out = proj_cs
+        else:
+            cs_in = proj_cs
+            cs_out = proj_cs
 
         source_path = v.get("sg_path_to_frames") or v.get("sg_path_to_movie") or ""
         output_path = ""
@@ -129,8 +156,13 @@ def fetch_shots_from_sg(shot_ids: list[int]) -> list[dict[str, Any]]:
     shots = sg.find("Shot", [["id", "in", shot_ids]], fields)
     results: list[dict[str, Any]] = []
     for s in shots:
-        # [유저 요청 반영] Input/Output 모두 out_plate_colorspace를 디폴트로 사용
-        plate_cs = s.get("sg_out_plate_colorspace") or ""
+        proj_cs = ""
+        proj_link = s.get("project")
+        if proj_link:
+            proj_cs = get_project_colorspace(sg, proj_link["id"])
+
+        # [유저 요청 반영] Input/Output 모두 out_plate_colorspace를 디폴트로 사용 (없으면 프로젝트 수준 컬러스페이스)
+        plate_cs = s.get("sg_out_plate_colorspace") or proj_cs
         cs_in = plate_cs
         cs_out = plate_cs
 
