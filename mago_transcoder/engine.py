@@ -45,10 +45,8 @@ class MagoEngine:
         # -i: 대화형 모드 비활성화 (no interactive)
         # -t: 터미널 모드 (no UI)
         
-        # [수정] 단일 프레임 렌더링 최적화
+        # [수정] 단일 프레임 렌더링 최적화 (항상 --frames 사용)
         frame_arg = "--frames"
-        if "-" not in frames:
-            frame_arg = "-F" if frames.isdigit() else "--frames"
 
         cmd: list[str] = [
             config.NUKE_EXEC,
