@@ -104,8 +104,8 @@ def configure_write_node(write_node, fmt: str, codec: str, bitdepth: str):
         write_node["datatype"].setValue(bd_map.get(bitdepth, "10 bit"))
 
     elif fmt == "tiff":
-        comp_map = {"none": "None", "lzw": "LZW", "deflate": "Deflate"}
-        write_node["compression"].setValue(comp_map.get(codec, "None"))
+        comp_map = {"none": "none", "lzw": "LZW", "deflate": "Deflate"}
+        write_node["compression"].setValue(comp_map.get(codec, "none"))
         bd_map = {"8": "8 bit", "16": "16 bit", "32": "32 bit float"}
         write_node["datatype"].setValue(bd_map.get(bitdepth, "16 bit"))
 
