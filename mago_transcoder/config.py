@@ -56,20 +56,21 @@ NUKE_ENV = {
 
 # Load SG secrets into os.environ from line-based KEY=value file (optional)
 def load_sg_env_file() -> None:
-    path = SG_ENV_PATH
-    if not path or not os.path.isfile(path):
-        return
-    try:
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                if "=" in line:
-                    k, v = line.split("=", 1)
-                    os.environ.setdefault(k.strip(), v.strip())
-    except OSError:
-        pass
+    paths = [SG_ENV_PATH, str(REPO_ROOT / ".env")]
+    for path in paths:
+        if not path or not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        k, v = line.split("=", 1)
+                        os.environ.setdefault(k.strip(), v.strip())
+        except OSError:
+            pass
 
 
 def ensure_sys_path() -> None:
