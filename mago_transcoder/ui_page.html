@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>MAGO TRANSCODER</title>
+<style>
+:root {
+  --bg: #F5F4EE;
+  --panel: #FFFFFF;
+  --card: #FDFDFB;
+  --border: #D8D7CF;
+  --input-border: #B6B8A9;
+  --accent: #556B2F;
+  --accent-hover: #3E4F22;
+  --text: #2C2C2A;
+  --dim: #7A7C73;
+  --success: #3D7A5A;
+  --error: #A94442;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; padding: 24px; }
+
+.wrap { max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+.header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 2px solid var(--accent); }
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 40px; height: 40px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #FFF; }
+.sec-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin-bottom: 10px; border-left: 3px solid var(--accent); padding-left: 6px; }
+
+.shot-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.shot-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; display: grid; grid-template-columns: 80px 1fr; gap: 16px; align-items: center; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+.shot-card.selected { border-color: var(--accent); background: #FAF9F3; box-shadow: 0 0 0 1px var(--accent); }
+.shot-thumb { width: 80px; height: 48px; border-radius: 6px; background: #EFEFE9; object-fit: cover; }
+.shot-name { font-weight: 700; font-size: 15px; color: #000; }
+.shot-meta { font-size: 12px; color: var(--dim); margin-top: 3px; }
+.shot-path { font-size: 11px; color: var(--dim); margin-top: 2px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+
+label.fl { font-size: 11px; font-weight: 700; color: var(--dim); display: block; margin-bottom: 6px; text-transform: uppercase; }
+
+.full-width-group { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+
+input[type=text], select { width: 100%; background: #FCFCFA; border: 1px solid var(--input-border); border-radius: 6px; padding: 10px 12px; color: #000; font-size: 13px; font-family: monospace; transition: border-color 0.2s; }
+input[type=text]:focus, select:focus { border-color: var(--accent); outline: none; background: #FFF; }
+
+.fg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.tab-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.fmt-tab { background: #EFEFE9; border: 1px solid var(--border); color: var(--dim); padding: 6px 16px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
+.fmt-tab.active { background: var(--accent); border-color: var(--accent); color: #FFF; }
+.fmt-opts { display: none; flex-direction: column; gap: 12px; }
+.fmt-opts.on { display: flex; }
+
+.bit-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.bit-btn { flex: 1; min-width: 60px; background: #EFEFE9; border: 1px solid var(--border); padding: 9px; border-radius: 6px; font-size: 11px; cursor: pointer; text-align: center; color: var(--dim); font-weight: bold; }
+.bit-btn.active { background: #E6E8DE; border-color: var(--accent); color: var(--accent); }
+
+.preset-btn { background: #EFEFE9; border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; color: var(--dim); cursor: pointer; font-size: 11px; font-weight: bold; transition: background 0.2s; }
+.preset-btn:hover { background: #E6E8DE; color: var(--accent); border-color: var(--accent); }
+
+.fmt-summary { background: #FAF9F3; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px; color: var(--accent); font-weight: bold; }
+
+.run-btn { width: 100%; padding: 18px; border: none; border-radius: 10px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; cursor: pointer; background: var(--accent); color: #FFF; font-size: 15px; transition: background 0.2s; }
+.run-btn:hover { background: var(--accent-hover); }
+.run-btn.cancel { background: var(--error); }
+
+.console { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.console-hdr { padding: 12px 18px; background: #F5F4EE; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+#log-area { padding: 16px; min-height: 180px; max-height: 350px; overflow-y: auto; font-family: Consolas, monospace; font-size: 12px; color: #4A4A46; background: #FAF9F3; }
+
+.log-success { color: var(--success); font-weight: 700; }
+.log-info { color: #2E5C8A; font-weight: 700; }
+.log-warn { color: #B37D14; }
+.log-error { color: var(--error); font-weight: 700; }
+.log-cmd { color: #6A5ACD; }
+.log-dim { color: #A0A09A; font-style: italic; }
+
+.cs-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ocio-path { font-size: 11px; color: var(--dim); font-family: monospace; margin-top: 4px; }
+.status-pill { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.05em; }
+.badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; margin-left: 6px; background: #E6E8DE; border: 1px solid var(--border); color: var(--accent); font-weight: bold; }
+
+.accent-red { color: #C0392B; font-size: 10px; font-weight: 700; text-transform: none; margin-left: 4px; font-family: system-ui, sans-serif; }
+select optgroup { font-weight: bold; color: var(--accent); background: #FFF; }
+select option { color: #000; font-weight: normal; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">M</div>
+      <div>
+        <div style="font-size:15px;font-weight:800;color:var(--text)">MAGO TRANSCODER</div>
+        <div style="font-size:10px;color:var(--dim)">SHOTGRID AMI · NUKE</div>
+      </div>
+    </div>
+    <div class="status-pill">● READY</div>
+  </div>
+
+  <div>
+    <div class="sec-label" style="display:flex;justify-content:space-between;align-items:center">
+      <span>SHOTGRID TARGET</span>
+    </div>
+    <div class="shot-list" id="shot-list">
+      <div class="no-shots">AMI에서 선택하거나 이름을 수동 입력하세요.</div>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="sec-label">FRAME RANGE</div>
+      
+      <div class="fg2">
+        <div>
+          <label class="fl">Shot Name</label>
+          <input type="text" id="inp-shot" placeholder="ABC_0010">
+        </div>
+        <div style="display:flex; flex-direction:column; justify-content:flex-end; padding-bottom:2px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="chk-single-frame" >
+            <label for="chk-single-frame" style="font-size:12px; font-weight:bold; color:var(--dim); cursor:pointer">Single Frame</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="full-width-group">
+        <label class="fl">Source Path <span class="accent-red">* read only source</span></label>
+        <input type="text" id="inp-source" placeholder="/path/####.exr">
+      </div>
+
+      <div class="fg2">
+        <div>
+          <label class="fl" id="lbl-frame-in">Frame In</label>
+          <input type="text" id="inp-frame-in" placeholder="1001">
+        </div>
+        <div id="col-frame-out">
+          <label class="fl">Frame Out</label>
+          <input type="text" id="inp-frame-out" placeholder="1100">
+        </div>
+      </div>
+
+      <div class="full-width-group">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+          <label class="fl">Output Path <span class="accent-red">* check version padding</span></label>
+          <div style="display:flex; gap:4px; margin-bottom:6px">
+            <button class="preset-btn" type="button" >↺ 템플릿 복구</button>
+            <button class="preset-btn" type="button" >📂 찾아보기</button>
+          </div>
+        </div>
+        <input type="text" id="inp-output" placeholder="/out/####.exr">
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="sec-label">OUTPUT FORMAT</div>
+      <div><label class="fl">File Format</label><div class="tab-row" id="fmt-tabs"></div></div>
+      <div id="fmt-options-area"></div>
+      
+      <div style="border-top:1px solid var(--border); padding-top:14px; margin-top:4px; display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="use_slate" style="width:14px; height:14px; cursor:pointer;">
+            <label for="use_slate" style="font-size:12px; font-weight:700; color:var(--text); cursor:pointer;">슬레이트 포함</label>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="enable_custom_slate_ver" style="width:14px; height:14px; cursor:pointer;" >
+            <label for="enable_custom_slate_ver" style="font-size:12px; color:var(--dim); cursor:pointer;">slate ver.</label>
+            <input type="text" id="slate_version" disabled placeholder="버전 입력" style="width:80px; padding:4px 8px; font-size:11px; height:26px;">
+          </div>
+        </div>
+      </div>
+
+      <div class="fmt-summary" id="fmt-summary-val">-</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="sec-label">COLOR (OCIO)</div>
+    <div class="cs-row">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="fl">Input</label>
+        </div>
+        <select id="sel-cs-in"></select>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="fl">Output</label>
+        </div>
+        <select id="sel-cs-out"></select>
+      </div>
+    </div>
+    <div class="ocio-path" id="ocio-path-display"></div>
+  </div>
+
+  <button class="run-btn" id="run-btn" type="button" >RENDER</button>
+  
+  <div id="progress-container" style="display:none; flex-direction:column; gap:8px;">
+    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--dim); font-weight:bold;">
+      <span id="progress-text">RENDER PROGRESS</span>
+      <span id="progress-percent">0%</span>
+    </div>
+    <div style="width:100%; height:8px; background:rgba(0,0,0,0.1); border-radius:4px; overflow:hidden;">
+      <div id="progress-bar" style="width:0%; height:100%; background:var(--accent); transition: width 0.3s ease;"></div>
+    </div>
+  </div>
+
+  <div class="console">
+    <div class="console-hdr">
+      <span style="font-size:10px;color:var(--accent);font-weight:700">LIVE CONSOLE</span>
+      <span id="console-status" style="font-size:10px;color:var(--dim)">IDLE</span>
+    </div>
+    <div id="log-area"><div class="log-dim">// 연결 대기 중... 브라우저 창을 닫으면 작업이 취소됩니다.</div></div>
+  </div>
+</div>
+
+<script>
+// 만약 Nuke 구형 브라우저에서 스크립트 에러가 날 경우 콘솔 영역에 빨간색으로 에러를 강제 표시하는 가드 기능 추가
+window.o-nerror = function(msg, url, lineNo, columnNo, error) {
+    var area = document.getElementById('log-area');
+    if (area) {
+        var div = document.createElement('div');
+        div.style.color = 'red';
+        div.style.fontWeight = 'bold';
+        div.textContent = '>> [JS ERROR] ' + msg + ' (Line: ' + lineNo + ')';
+        area.appendChild(div);
+    }
+    return false;
+};
+
+var state = { shots: [], selectedIdx: 0, format: 'exr', abortCtrl: null };
+var formatDefs = __FORMAT_DEFS_JSON__;
+var colorspaces = __COLORSPACES_JSON__;
+var INITIAL_IDS = __INITIAL_IDS__;
+var INITIAL_NAMES = __INITIAL_NAMES__;
+
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        buildFormatTabs();
+        buildColorspaceSelects();
+        fetchShotData();
+        var ocioEl = document.getElementById('ocio-path-display');
+        if (ocioEl) ocioEl.textContent = 'OCIO: __OCIO_PATH__';
+    } catch(e) {
+        log('초기화 에러: ' + e.message, 'error');
+    }
+});
+
+async function fetchShotData() {
+  var urlParams = new URLSearchParams(window.location.search);
+  var ids = INITIAL_IDS || urlParams.get('ids') || '';
+  var names = INITIAL_NAMES || urlParams.get('names') || '';
+  if (!ids && !names) return;
+  try {
+    var res = await fetch('/api/sg-info?' + new URLSearchParams({ ids: ids, names: names }));
+    var data = await res.json();
+    if (data.shots && data.shots.length) {
+      state.shots = data.shots;
+      renderShotList();
+      selectShot(0);
+    }
+  } catch (e) { log('ShotGrid 로드 실패: ' + e.message, 'error'); }
+}
+
+function renderShotList() {
+  var el = document.getElementById('shot-list');
+  if (!state.shots.length) return;
+  el.innerHTML = '';
+  for (var i = 0; i < state.shots.length; i++) {
+    var s = state.shots[i];
+    var card = document.createElement('div');
+    card.className = 'shot-card' + (i === state.selectedIdx ? ' selected' : '');
+    card.onclick = (function(idx) { return function() { selectShot(idx); }; })(i);
+    var thumb = s.thumbnail
+      ? '<img class="shot-thumb" src="' + s.thumbnail + '" alt="">'
+      : '<div class="shot-thumb">' + (s.shot_name || '') + '</div>';
+    
+    var projBadge = s.project ? '<span class="badge">' + s.project + '</span>' : '';
+    card.innerHTML = thumb + '<div><div class="shot-row1" style="display:flex;justify-content:space-between;gap:8px">' +
+      '<span class="shot-name">' + (s.shot_name || s.version_name) + '</span>' + projBadge + '</div>' +
+      '<div class="shot-meta">' + s.version_name + ' · ' + s.frame_in + ' - ' + s.frame_out + '</div>' +
+      '<div class="shot-path">' + (s.source_path || '(소스 없음)') + '</div></div>';
+    el.appendChild(card);
+  }
+}
+
+function selectShot(idx) {
+  state.selectedIdx = idx;
+  var s = state.shots[idx];
+  document.getElementById('inp-shot').value = s.shot_name || s.version_name;
+  document.getElementById('inp-frame-in').value = s.frame_in;
+  document.getElementById('inp-frame-out').value = s.frame_out;
+  document.getElementById('inp-source').value = s.source_path || '';
+  document.getElementById('inp-output').value = s.output_path || '';
+  
+  autoMatchColorspace('sel-cs-in', s.colorspace_in);
+  autoMatchColorspace('sel-cs-out', s.colorspace_out);
+  
+  updateSlateVersionPlaceholder(s.version_name || s.shot_name || '');
+  
+  var cards = document.querySelectorAll('.shot-card');
+  for (var i = 0; i < cards.length; i++) {
+    if (i === idx) cards[i].classList.add('selected');
+    else cards[i].classList.remove('selected');
+  }
+  updateOutputNameByFormat();
+}
+
+function updateSlateVersionPlaceholder(text) {
+  var slateInput = document.getElementById('slate_version');
+  var verMatch = text.match(/v\d+/i);
+  if (verMatch) {
+    slateInput.placeholder = verMatch[0];
+  } else {
+    slateInput.placeholder = "버전 입력";
+  }
+}
+
+function toggleSlateVersionInput() {
+  try {
+    var chk = document.getElementById('enable_custom_slate_ver');
+    var inp = document.getElementById('slate_version');
+    inp.disabled = !chk.checked;
+    if (chk.checked) {
+      inp.focus();
+    } else {
+      inp.value = '';
+    }
+  } catch(e) { log('토글 오류: ' + e.message, 'error'); }
+}
+
+function restoreTemplatePath() {
+  try {
+    var s = state.shots[state.selectedIdx];
+    if (s && s.output_path) {
+      document.getElementById('inp-output').value = s.output_path;
+      updateOutputNameByFormat();
+    }
+  } catch(e) { log('경로 복구 오류: ' + e.message, 'error'); }
+}
+
+function browseFolder() {
+  try {
+    var inp = document.getElementById('inp-output');
+    var currentDir = "";
+    if (inp && inp.value) {
+      var pathStr = inp.value.replace(/\\/g, '/');
+      var lastSlash = pathStr.lastIndexOf('/');
+      currentDir = lastSlash !== -1 ? pathStr.substring(0, lastSlash) : pathStr;
+    }
+    var s = state.shots[state.selectedIdx];
+    if (!currentDir && s && s.source_path) {
+      var sp = s.source_path;
+      currentDir = sp.substring(0, sp.lastIndexOf('/'));
+    }
+    window.open('/view-folder?path=' + encodeURIComponent(currentDir) + '&mode=select', 'MagoBrowser', 'width=800,height=600');
+  } catch(e) { log('찾아보기 오류: ' + e.message, 'error'); }
+}
+
+window.receiveSelectedOutput = function(selectedDir) {
+  var s = state.shots[state.selectedIdx];
+  var version = s ? s.version_name : 'output';
+  var fmt = state.format;
+  var ext = (fmt === 'mov') ? 'mov' : '####.' + fmt;
+  var cleanDir = selectedDir.replace(/\\/g, '/');
+  var inp = document.getElementById('inp-output');
+  if (inp) inp.value = cleanDir + '/' + version + '.' + ext;
+  updateOutputNameByFormat();
+};
+
+function updateOutputNameByFormat() {
+  var inp = document.getElementById('inp-output');
+  if (!inp || !inp.value || inp.value === '.' || inp.value === '/') return;
+
+  var s = state.shots[state.selectedIdx];
+  var version = s ? s.version_name : 'output';
+  var fmt = state.format;
+  
+  var pathStr = inp.value.replace(/\\/g, '/');
+  var lastSlash = pathStr.lastIndexOf('/');
+  var dir = lastSlash !== -1 ? pathStr.substring(0, lastSlash) : pathStr;
+  
+  var ext = (fmt === 'mov') ? 'mov' : '####.' + fmt;
+  inp.value = dir + '/' + version + '.' + ext;
+}
+
+function buildFormatTabs() {
+  var tabRow = document.getElementById('fmt-tabs');
+  var optArea = document.getElementById('fmt-options-area');
+  var keys = Object.keys(formatDefs);
+  for (var i = 0; i < keys.length; i++) {
+    (function(idx) {
+      var fmtId = keys[idx];
+      var def = formatDefs[fmtId];
+      var tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'fmt-tab' + (idx === 0 ? ' active' : '');
+      tab.textContent = def.label;
+      tab.setAttribute('data-fmt', fmtId);
+      tab.onclick = function() { switchFormat(fmtId); };
+      tabRow.appendChild(tab);
+
+      var block = document.createElement('div');
+      block.className = 'fmt-opts' + (idx === 0 ? ' on' : '');
+      block.id = 'fmt-' + fmtId;
+      var codecLabel = (fmtId === 'mov') ? 'Codec' : 'Compression';
+      
+      var codecOptions = '';
+      for (var j = 0; j < def.codecs.length; j++) {
+        var c = def.codecs[j];
+        var sel = (c.id === def.default_codec) ? 'selected' : '';
+        codecOptions += '<option value="' + c.id + '" ' + sel + '>' + c.label + '</option>';
+      }
+
+      var codecHtml = '<div><label class="fl">' + codecLabel + '</label>' +
+        '<select id="sel-codec-' + fmtId + '" >' +
+        codecOptions + '</select></div>';
+        
+      var bitBtns = '';
+      for (var k = 0; k < def.bitdepths.length; k++) {
+        var b = def.bitdepths[k];
+        var act = (b.id === def.default_bitdepth) ? ' active' : '';
+        bitBtns += '<button type="button" class="bit-btn' + act + '" data-fmt="' + fmtId + '" data-bit="' + b.id + '" >' + b.label + '</button>';
+      }
+      
+      block.innerHTML = codecHtml + '<div><label class="fl">Bit Depth</label>' +
+        '<div class="bit-group" id="bits-' + fmtId + '">' + bitBtns + '</div>' +
+        '<input type="hidden" id="sel-bits-' + fmtId + '" value="' + def.default_bitdepth + '"></div>';
+      optArea.appendChild(block);
+    })(i);
+  }
+  state.format = keys[0];
+  updateFmtSummary();
+}
+
+function selectBit(fmtId, bitId, el) {
+  var btns = document.querySelectorAll('#bits-' + fmtId + ' .bit-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.remove('active');
+  }
+  el.classList.add('active');
+  document.getElementById('sel-bits-' + fmtId).value = bitId;
+  updateFmtSummary();
+}
+
+function switchFormat(fmtId) {
+  state.format = fmtId;
+  var tabs = document.querySelectorAll('.fmt-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    if (tabs[i].getAttribute('data-fmt') === fmtId) tabs[i].classList.add('active');
+    else tabs[i].classList.remove('active');
+  }
+  
+  var opts = document.querySelectorAll('.fmt-opts');
+  for (var j = 0; j < opts.length; j++) {
+    if (opts[j].id === 'fmt-' + fmtId) opts[j].classList.add('on');
+    else opts[j].classList.remove('on');
+  }
+  updateFmtSummary();
+  updateOutputNameByFormat();
+}
+
+function updateFmtSummary() {
+  var fmt = state.format;
+  var def = formatDefs[fmt];
+  var codecEl = document.getElementById('sel-codec-' + fmt);
+  var bitEl = document.getElementById('sel-bits-' + fmt);
+  if (!def || !codecEl || !bitEl) return;
+  
+  var codecLabel = codecEl.value;
+  for (var i = 0; i < def.codecs.length; i++) {
+    if (def.codecs[i].id === codecEl.value) { codecLabel = def.codecs[i].label; break; }
+  }
+  
+  var bitLabel = bitEl.value;
+  for (var j = 0; j < def.bitdepths.length; j++) {
+    if (def.bitdepths[j].id === bitEl.value) { bitLabel = def.bitdepths[j].label; break; }
+  }
+  
+  var sumEl = document.getElementById('fmt-summary-val');
+  if (sumEl) sumEl.textContent = def.label + ' · ' + codecLabel + ' · ' + bitLabel;
+}
+
+function buildColorspaceSelects() {
+  var core = [
+    'ACES - ACES2065-1',
+    'ACES - ACEScg',
+    'ACES - ACEScct',
+    'Input - ARRI - V3 LogC (EI800) - Wide Gamut',
+    'Input - ARRI - V4 LogC (EI800) - Wide Gamut',
+    'Output - Rec.709',
+    'Output - sRGB',
+    'Utility - sRGB - Texture'
+  ];
+  
+  var selects = ['sel-cs-in', 'sel-cs-out'];
+  for (var idx = 0; idx < selects.length; idx++) {
+    var selId = selects[idx];
+    var sel = document.getElementById(selId);
+    var currentVal = sel.value;
+    sel.innerHTML = '';
+    
+    var gCore = document.createElement('optgroup');
+    gCore.label = 'Favorite';
+    for (var i = 0; i < core.length; i++) {
+      var opt1 = document.createElement('option');
+      opt1.value = core[i]; opt1.textContent = core[i];
+      gCore.appendChild(opt1);
+    }
+    sel.appendChild(gCore);
+
+    var separator = document.createElement('option');
+    separator.disabled = true;
+    separator.textContent = '──────────────';
+    sel.appendChild(separator);
+
+    var gAll = document.createElement('optgroup');
+    gAll.label = 'All Colorspaces';
+    for (var j = 0; j < colorspaces.length; j++) {
+      if (core.indexOf(colorspaces[j]) === -1) {
+        var opt2 = document.createElement('option');
+        opt2.value = colorspaces[j]; opt2.textContent = colorspaces[j];
+        gAll.appendChild(opt2);
+      }
+    }
+    sel.appendChild(gAll);
+
+    if (currentVal) sel.value = currentVal;
+  }
+}
+
+function autoMatchColorspace(selId, targetCs) {
+  if (!targetCs) return;
+
+  var sel = document.getElementById(selId);
+  if (!sel) return;
+  var options = sel.options;
+  
+  var simplify = function(s) { return s.toLowerCase().replace(/[^a-z0-9]/g, ''); };
+  var targetSimple = simplify(targetCs);
+
+  var matched = null;
+  for (var i=0; i<options.length; i++) {
+    if (options[i].value === targetCs) { matched = options[i]; break; }
+  }
+  if (!matched) {
+    for (var j=0; j<options.length; j++) {
+      if (simplify(options[j].value) === targetSimple) { matched = options[j]; break; }
+    }
+  }
+  if (!matched) {
+    for (var k=0; k<options.length; k++) {
+      if (simplify(options[k].value).indexOf(targetSimple) !== -1 || targetSimple.indexOf(simplify(options[k].value)) !== -1) { matched = options[k]; break; }
+    }
+  }
+
+  if (matched) {
+    sel.value = matched.value;
+  }
+}
+
+function toggleSingleFrameMode() {
+  var chk = document.getElementById('chk-single-frame');
+  var isSingle = chk ? chk.checked : false;
+  var lblIn = document.getElementById('lbl-frame-in');
+  var colOut = document.getElementById('col-frame-out');
+  
+  if (isSingle) {
+    if (lblIn) lblIn.textContent = 'Frame';
+    if (colOut) colOut.style.visibility = 'hidden';
+    var inVal = document.getElementById('inp-frame-in').value;
+    document.getElementById('inp-frame-out').value = inVal;
+  } else {
+    if (lblIn) lblIn.textContent = 'Frame In';
+    if (colOut) colOut.style.visibility = 'visible';
+    setFullRange();
+  }
+}
+
+function setFullRange() {
+  if (state.shots.length > 0) {
+    var s = state.shots[state.selectedIdx];
+    if (s) {
+      document.getElementById('inp-frame-in').value = s.frame_in;
+      document.getElementById('inp-frame-out').value = s.frame_out;
+    }
+  }
+}
+
+async function handleRun() {
+  try {
+    var btn = document.getElementById('run-btn');
+    if (state.abortCtrl) {
+      log('중단 요청됨', 'warn');
+      state.abortCtrl.abort();
+      return;
+    }
+    var fmt = state.format;
+    var codecEl = document.getElementById('sel-codec-' + fmt);
+    var codec = codecEl ? codecEl.value : '';
+    
+    var bitEl = document.getElementById('sel-bits-' + fmt);
+    var bitdepth = bitEl ? bitEl.value : '';
+    
+    var csIn = document.getElementById('sel-cs-in').value;
+    var csOut = document.getElementById('sel-cs-out').value;
+    var frameIn = document.getElementById('inp-frame-in').value || '1001';
+    var frameOut = document.getElementById('inp-frame-out').value || frameIn;
+    var shotName = document.getElementById('inp-shot').value || 'Manual';
+    var srcPath = document.getElementById('inp-source').value || '';
+    var outPath = document.getElementById('inp-output').value || '';
+    var taskId = 't_' + Date.now();
+    var frameRange = (frameIn === frameOut) ? frameIn : (frameIn + '-' + frameOut);
+
+    document.getElementById('log-area').innerHTML = '';
+    document.getElementById('console-status').textContent = '● RUNNING';
+    if (btn) {
+      btn.textContent = 'CANCEL PROCESS';
+      btn.className = 'run-btn cancel';
+    }
+    state.abortCtrl = new AbortController();
+    
+    var progContainer = document.getElementById('progress-container');
+    var progBar = document.getElementById('progress-bar');
+    var progText = document.getElementById('progress-text');
+    var progPercent = document.getElementById('progress-percent');
+    
+    if (progContainer) progContainer.style.display = 'flex';
+    if (progBar) {
+      progBar.style.width = '0%';
+      progBar.style.background = 'var(--accent)';
+    }
+    if (progText) {
+      progText.textContent = 'RENDERING...';
+      progText.style.color = 'var(--dim)';
+    }
+    if (progPercent) progPercent.textContent = '0%';
+
+    log('시작 -> ' + shotName + ' | ' + frameRange + ' | ' + fmt.toUpperCase(), 'info');
+    log('컬러: ' + csIn + ' -> ' + csOut, 'info');
+
+    var useSlate = document.getElementById('use_slate').checked;
+    var enableCustomVer = document.getElementById('enable_custom_slate_ver').checked;
+    var customSlateVer = document.getElementById('slate_version').value;
+    
+    var s = state.shots[state.selectedIdx];
+    var projectCode = (s && s.project) ? s.project.toLowerCase() : "";
+
+    var payload = {
+      shot_name: shotName, frames: frameRange, format: fmt, codec: codec, bitdepth: bitdepth,
+      colorspace_in: csIn, colorspace: csOut,
+      source_path: srcPath, output_path: outPath, task_id: taskId,
+      use_slate: useSlate,
+      project: projectCode,
+      slate_version: (enableCustomVer && customSlateVer) ? customSlateVer : null
+    };
+
+    var res = await fetch('/api/render', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+      signal: state.abortCtrl.signal
+    });
+    
+    if (!res.ok) {
+      log('서버 에러 발생: HTTP ' + res.status, 'error');
+      throw new Error('Server Error');
+    }
+
+    var reader = res.body.getReader();
+    var decoder = new TextDecoder();
+    
+    while (true) {
+      var result = await reader.read();
+      if (result.done) break;
+      
+      var chunks = decoder.decode(result.value, { stream: true }).split('\n\n');
+      for (var i = 0; i < chunks.length; i++) {
+        var chunk = chunks[i];
+        if (chunk.indexOf('data: ') !== 0) continue;
+        
+        try {
+          var parsed = JSON.parse(chunk.slice(6));
+          var msg = parsed.log;
+          var l = msg.toLowerCase();
+          
+          if (msg.indexOf('[PROGRESS]') === 0) {
+            var percent = msg.split(' ')[1];
+            if (progBar) progBar.style.width = percent + '%';
+            if (progPercent) progPercent.textContent = percent + '%';
+          }
+          else if (msg === '[ERROR_STATE]') {
+            if (progBar) progBar.style.background = 'var(--error)';
+            if (progText) {
+              progText.textContent = 'ERROR OCCURRED';
+              progText.style.color = 'var(--error)';
+            }
+            if (state.abortCtrl) state.abortCtrl.abort();
+          }
+          else if (l.indexOf('[success]') !== -1) {
+            log(msg, 'success');
+            if (progBar) {
+              progBar.style.width = '100%';
+              progBar.style.background = 'var(--success)';
+            }
+            if (progText) {
+              progText.textContent = 'RENDER COMPLETE';
+              progText.style.color = 'var(--success)';
+            }
+            if (progPercent) progPercent.textContent = '100%';
+          }
+          else if (l.indexOf('[failed]') !== -1 || l.indexOf('[error]') !== -1) {
+            log(msg, 'error');
+            if (progBar) progBar.style.background = 'var(--error)';
+            if (progText) {
+              progText.textContent = 'RENDER FAILED';
+              progText.style.color = 'var(--error)';
+            }
+          }
+          else if (l.indexOf('[system]') !== -1) {
+            log(msg, 'warn');
+          }
+          else if (l.indexOf('[cmd]') !== -1) {
+            log(msg, 'cmd');
+          }
+          else {
+            log(msg);
+          }
+        } catch (_) {}
+      }
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      log('취소됨', 'error');
+    } else {
+      log('오류: ' + err.message, 'error');
+    }
+  } finally {
+    state.abortCtrl = null;
+    var finalBtn = document.getElementById('run-btn');
+    if (finalBtn) {
+      finalBtn.textContent = 'RENDER';
+      finalBtn.className = 'run-btn';
+    }
+    var statusEl = document.getElementById('console-status');
+    if (statusEl) statusEl.textContent = 'IDLE';
+  }
+}
+
+function log(msg, type) {
+  var area = document.getElementById('log-area');
+  if (!area) return;
+  var div = document.createElement('div');
+  div.textContent = (!type || type === 'dim' ? '' : '> ') + msg;
+  if (type) div.className = 'log-' + type;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+</script>
+</body>
+</html>

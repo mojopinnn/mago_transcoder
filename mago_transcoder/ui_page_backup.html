@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>MAGO TRANSCODER</title>
+<style>
+:root {
+  --bg: #F5F4EE;            /* ë¶€?œëŸ½ê³??°ëœ»???„ì´ë³´ë¦¬ ë°”íƒ• */
+  --panel: #FFFFFF;         /* ê¹”ë”???”ì´???¨ë„ */
+  --card: #FDFDFB;          /* ?´ì¥??ì¹´ë“œ ë°°ê²½ */
+  --border: #D8D7CF;        /* ?€?€???¬ë¦¬ë¸??´íŠ¸ê°€ ?„ëŠ” ?ˆì´?„ì›ƒ ??*/
+  --input-border: #B6B8A9;  /* ?¸í’‹ ë°•ìŠ¤ ëª…í™•??ê²½ê³„ ??*/
+  --accent: #556B2F;        /* ?¤í¬ ?¬ë¦¬ë¸Œê·¸ë¦?(?µì‹¬ ?¬ì¸??ì»¬ëŸ¬) */
+  --accent-hover: #3E4F22;  /* ë²„íŠ¼ ?¸ë²„ ??ê¹Šì´ê°??ˆëŠ” ?¬ë¦¬ë¸?*/
+  --text: #2C2C2A;          /* ê°€?…ì„±???’ì? ?´ë‘??ê·¸ë ˆ???¬ë¦¬ë¸??ìŠ¤??*/
+  --dim: #7A7C73;           /* ë³´ì¡° ?¤ëª…??ë®¤íŠ¸ ?¬ë¦¬ë¸Œê·¸?ˆì´ */
+  --success: #3D7A5A;       /* ì°¨ë¶„??ê·¸ë¦° */
+  --error: #A94442;         /* ëª…í™•??ê²½ê³  ?ˆë“œ */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; padding: 24px; }
+
+/* 1060px ?œì•½???´ì œ?˜ê³  ëª¨ë‹ˆ??ê°€ë¡??´ìƒ?„ë? ê½?ì±„ìš°???€?´ë“œ ?¤ì????•ì¥ */
+.wrap { max-width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+.header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 2px solid var(--accent); }
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 40px; height: 40px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #FFF; }
+.sec-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin-bottom: 10px; border-left: 3px solid var(--accent); padding-left: 6px; }
+
+.shot-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.shot-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; display: grid; grid-template-columns: 80px 1fr; gap: 16px; align-items: center; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+.shot-card.selected { border-color: var(--accent); background: #FAF9F3; box-shadow: 0 0 0 1px var(--accent); }
+.shot-thumb { width: 80px; height: 48px; border-radius: 6px; background: #EFEFE9; object-fit: cover; }
+.shot-name { font-weight: 700; font-size: 15px; color: #000; }
+.shot-meta { font-size: 12px; color: var(--dim); margin-top: 3px; }
+.shot-path { font-size: 11px; color: var(--dim); margin-top: 2px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+
+label.fl { font-size: 11px; font-weight: 700; color: var(--dim); display: block; margin-bottom: 6px; text-transform: uppercase; }
+
+/* ê²½ë¡œ ?„ë“œê°€ ?˜ë¦¬ì§€ ?Šë„ë¡?100% ê°€ë¡œí­???•ë³´?˜ëŠ” ?¨ë… ê°€ë¡œí–‰ êµ¬ì¡° */
+.full-width-group { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+
+input[type=text], select { width: 100%; background: #FCFCFA; border: 1px solid var(--input-border); border-radius: 6px; padding: 10px 12px; color: #000; font-size: 13px; font-family: monospace; transition: border-color 0.2s; }
+input[type=text]:focus, select:focus { border-color: var(--accent); outline: none; background: #FFF; }
+
+.fg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.tab-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.fmt-tab { background: #EFEFE9; border: 1px solid var(--border); color: var(--dim); padding: 6px 16px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
+.fmt-tab.active { background: var(--accent); border-color: var(--accent); color: #FFF; }
+.fmt-opts { display: none; flex-direction: column; gap: 12px; }
+.fmt-opts.on { display: flex; }
+
+.bit-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.bit-btn { flex: 1; min-width: 60px; background: #EFEFE9; border: 1px solid var(--border); padding: 9px; border-radius: 6px; font-size: 11px; cursor: pointer; text-align: center; color: var(--dim); font-weight: bold; }
+.bit-btn.active { background: #E6E8DE; border-color: var(--accent); color: var(--accent); }
+
+.fmt-summary { background: #FAF9F3; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px; color: var(--accent); font-weight: bold; }
+
+.run-btn { width: 100%; padding: 18px; border: none; border-radius: 10px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; cursor: pointer; background: var(--accent); color: #FFF; font-size: 15px; transition: background 0.2s; }
+.run-btn:hover { background: var(--accent-hover); }
+.run-btn.cancel { background: var(--error); }
+
+.console { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.console-hdr { padding: 12px 18px; background: #F5F4EE; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+#log-area { padding: 16px; min-height: 180px; max-height: 350px; overflow-y: auto; font-family: Consolas, monospace; font-size: 12px; color: #4A4A46; background: #FAF9F3; }
+
+.log-success { color: var(--success); font-weight: 700; }
+.log-info { color: #2E5C8A; font-weight: 700; }
+.log-warn { color: #B37D14; }
+.log-error { color: var(--error); font-weight: 700; }
+.log-cmd { color: #6A5ACD; }
+.log-dim { color: #A0A09A; font-style: italic; }
+
+.cs-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ocio-path { font-size: 11px; color: var(--dim); font-family: monospace; margin-top: 4px; }
+.status-pill { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.05em; }
+.badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; margin-left: 6px; background: #E6E8DE; border: 1px solid var(--border); color: var(--accent); font-weight: bold; }
+
+/* ?¸ë ¨??êµ?†Œ???ˆë“œ ?¬ì¸???”ì??*/
+.accent-red { color: #C0392B; font-size: 10px; font-weight: 700; text-transform: none; margin-left: 4px; font-family: system-ui, sans-serif; }
+select optgroup { font-weight: bold; color: var(--accent); background: #FFF; }
+select option { color: #000; font-weight: normal; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">M</div>
+      <div>
+        <div style="font-size:15px;font-weight:800;color:#fff">MAGO TRANSCODER</div>
+        <div style="font-size:10px;color:var(--dim)">SHOTGRID AMI Â· NUKE</div>
+      </div>
+    </div>
+    <div class="status-pill">??READY</div>
+  </div>
+
+    <div>
+      <div class="sec-label" style="display:flex;justify-content:space-between;align-items:center">
+        <span>SHOTGRID TARGET</span>
+      </div>
+      <div class="shot-list" id="shot-list">
+        <div class="no-shots">AMI?ì„œ ? íƒ?˜ê±°?????´ë¦„???˜ë™ ?…ë ¥?˜ì„¸??</div>
+      </div>
+    </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="sec-label">FRAME RANGE</div>
+      <div class="fg2">
+        <div><label class="fl">Shot Name</label><input type="text" id="inp-shot" placeholder="ABC_0010"></div>
+        <div><label class="fl">Source Path</label><input type="text" id="inp-source" placeholder="/path/####.exr"></div>
+      </div>
+      <div class="fg2">
+        <div>
+          <label class="fl" id="lbl-frame-in">Frame In</label>
+          <input type="text" id="inp-frame-in" placeholder="1001">
+        </div>
+        <div id="col-frame-out">
+          <label class="fl">Frame Out</label>
+          <input type="text" id="inp-frame-out" placeholder="1100">
+        </div>
+      </div>
+      <div style="margin-top:-6px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="chk-single-frame" onchange="toggleSingleFrameMode()">
+        <label for="chk-single-frame" style="font-size:11px;color:var(--dim);cursor:pointer">Single Frame ëª¨ë“œ</label>
+      </div>
+      <div class="preset-row">
+        <button class="preset-btn" type="button" onclick="setSingleFrame()">?„ì¬ ?„ë ˆ?„ë§Œ</button>
+        <button class="preset-btn" type="button" onclick="setFullRange()">?„ì²´ ë²”ìœ„</button>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="fl">Output Path (? íƒ)</label>
+          <div style="display:flex;gap:4px;margin-bottom:6px">
+            <button class="preset-btn" style="width:auto;padding:2px 8px;font-size:9px" onclick="restoreTemplatePath()">???œí”Œë¦?ê²½ë¡œ ë³µêµ¬</button>
+            <button class="preset-btn" style="width:auto;padding:2px 8px;font-size:9px" onclick="browseFolder()">?“‚ ì°¾ì•„ë³´ê¸°</button>
+          </div>
+        </div>
+        <input type="text" id="inp-output" placeholder="/out/####.exr">
+      </div>
+    </div>
+    <div class="panel">
+      <div class="sec-label">OUTPUT FORMAT</div>
+      <div><label class="fl">File Format</label><div class="tab-row" id="fmt-tabs"></div></div>
+      <div id="fmt-options-area"></div>
+      
+      <!-- Slate Options -->
+      <div style="border-top:1px solid var(--border); padding-top:14px; margin-top:4px; display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="use_slate" style="width:14px; height:14px; cursor:pointer;">
+            <label for="use_slate" style="font-size:12px; font-weight:700; color:#fff; cursor:pointer;">?¬ë ˆ?´íŠ¸ ?¬í•¨</label>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="enable_custom_slate_ver" style="width:14px; height:14px; cursor:pointer;" onchange="toggleSlateVersionInput()">
+            <label for="enable_custom_slate_ver" style="font-size:12px; color:var(--dim); cursor:pointer;">slate ver.</label>
+            <input type="text" id="slate_version" disabled placeholder="ë²„ì „ ?…ë ¥" style="width:80px; padding:4px 8px; font-size:11px; height:26px;">
+          </div>
+        </div>
+      </div>
+
+      <div class="fmt-summary" id="fmt-summary-val">??/div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="sec-label">COLOR (OCIO)</div>
+    <div class="cs-row">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="fl">Input</label>
+        </div>
+        <select id="sel-cs-in"></select>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="fl">Output</label>
+        </div>
+        <select id="sel-cs-out"></select>
+      </div>
+    </div>
+    <div class="ocio-path" id="ocio-path-display"></div>
+  </div>
+
+
+  <button class="run-btn" id="run-btn" type="button" onclick="handleRun()">RENDER</button>
+  
+  <div id="progress-container" style="display:none; flex-direction:column; gap:8px;">
+    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--dim); font-weight:bold;">
+      <span id="progress-text">RENDER PROGRESS</span>
+      <span id="progress-percent">0%</span>
+    </div>
+    <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden;">
+      <div id="progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.3s ease, background 0.3s ease;"></div>
+    </div>
+  </div>
+
+  <div class="console">
+    <div class="console-hdr">
+      <span style="font-size:10px;color:var(--accent);font-weight:700">LIVE CONSOLE</span>
+      <span id="console-status" style="font-size:10px;color:var(--dim)">IDLE</span>
+    </div>
+    <div id="log-area"><div class="log-dim">// ?°ê²° ?€ê¸°â€?ë¸Œë¼?°ì?ë¥??«ìœ¼ë©??‘ì—…??ì·¨ì†Œ?©ë‹ˆ??</div></div>
+  </div>
+</div>
+
+<script>
+const state = { shots: [], selectedIdx: 0, format: 'exr', abortCtrl: null };
+const formatDefs = __FORMAT_DEFS_JSON__;
+const colorspaces = __COLORSPACES_JSON__;
+const INITIAL_IDS = __INITIAL_IDS__;
+const INITIAL_NAMES = __INITIAL_NAMES__;
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildFormatTabs();
+  buildColorspaceSelects();
+  fetchShotData();
+  document.getElementById('ocio-path-display').textContent = 'OCIO: __OCIO_PATH__';
+});
+
+async function fetchShotData() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const ids = INITIAL_IDS || urlParams.get('ids') || '';
+  const names = INITIAL_NAMES || urlParams.get('names') || '';
+  if (!ids && !names) return;
+  try {
+    const res = await fetch('/api/sg-info?' + new URLSearchParams({ ids, names }));
+    const data = await res.json();
+    if (data.shots && data.shots.length) {
+      state.shots = data.shots;
+      renderShotList();
+      selectShot(0);
+    }
+  } catch (e) { log('ShotGrid ë¡œë“œ ?¤íŒ¨: ' + e.message, 'error'); }
+}
+
+function renderShotList() {
+  const el = document.getElementById('shot-list');
+  if (!state.shots.length) return;
+  el.innerHTML = '';
+  state.shots.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'shot-card' + (i === state.selectedIdx ? ' selected' : '');
+    card.onclick = () => selectShot(i);
+    const thumb = s.thumbnail
+      ? `<img class="shot-thumb" src="${s.thumbnail}" alt="">`
+      : `<div class="shot-thumb">${s.shot_name || ''}</div>`;
+    card.innerHTML = thumb + `<div><div class="shot-row1" style="display:flex;justify-content:space-between;gap:8px">
+      <span class="shot-name">${s.shot_name || s.version_name}</span>
+      ${s.project ? `<span class="badge">${s.project}</span>` : ''}</div>
+      <div class="shot-meta">${s.version_name} Â· ${s.frame_in}??{s.frame_out}</div>
+      <div class="shot-path">${s.source_path || '(?ŒìŠ¤ ?†ìŒ)'}</div></div>`;
+    el.appendChild(card);
+  });
+}
+
+function selectShot(idx) {
+  state.selectedIdx = idx;
+  const s = state.shots[idx];
+  document.getElementById('inp-shot').value = s.shot_name || s.version_name;
+  document.getElementById('inp-frame-in').value = s.frame_in;
+  document.getElementById('inp-frame-out').value = s.frame_out;
+  document.getElementById('inp-source').value = s.source_path || '';
+  
+  // ?œë²„?ì„œ ?˜ì–´???„ì›ƒ???´ë” ê²½ë¡œê°€ ?ˆìœ¼ë©??¬ìš©, ?†ìœ¼ë©?ë¹?ê°?(ê°€ì§??ìŠ¤???¸ì¶œ ì°¨ë‹¨)
+  document.getElementById('inp-output').value = s.output_path || '';
+  
+  // ì»¬ëŸ¬ ?¤í˜?´ìŠ¤ ?ë™ ë§¤ì¹­
+  autoMatchColorspace('sel-cs-in', s.colorspace_in);
+  autoMatchColorspace('sel-cs-out', s.colorspace_out);
+  
+  // ë²„ì „ ?ë™ ì¶”ì¶œ ë°?Slate Placeholder ?¤ì •
+  updateSlateVersionPlaceholder(s.version_name || s.shot_name || '');
+
+  document.querySelectorAll('.shot-card').forEach((c, i) => c.classList.toggle('selected', i === idx));
+  updateOutputNameByFormat();
+}
+
+function updateSlateVersionPlaceholder(text) {
+  const slateInput = document.getElementById('slate_version');
+  const verMatch = text.match(/v\d+/i);
+  if (verMatch) {
+    slateInput.placeholder = verMatch[0];
+  } else {
+    slateInput.placeholder = "ë²„ì „ ?…ë ¥";
+  }
+}
+
+function toggleSlateVersionInput() {
+  const chk = document.getElementById('enable_custom_slate_ver');
+  const inp = document.getElementById('slate_version');
+  inp.disabled = !chk.checked;
+  if (chk.checked) {
+    inp.focus();
+  } else {
+    inp.value = '';
+  }
+}
+
+function restoreTemplatePath() {
+  const s = state.shots[state.selectedIdx];
+  if (s && s.output_path) {
+    document.getElementById('inp-output').value = s.output_path;
+    updateOutputNameByFormat();
+  }
+}
+
+function browseFolder() {
+  const inp = document.getElementById('inp-output').value;
+  let currentDir = "";
+  if (inp) {
+    let pathStr = inp.replace(/\\/g, '/');
+    const lastSlash = pathStr.lastIndexOf('/');
+    currentDir = lastSlash !== -1 ? pathStr.substring(0, lastSlash) : pathStr;
+  }
+  
+  // ê¸°ë³¸ ê²½ë¡œ ?ëŠ” ? íƒ???·ì˜ ?ŒìŠ¤ ê²½ë¡œ ê¸°ë°˜ ?´ë°±
+  if (!currentDir && state.shots[state.selectedIdx]?.source_path) {
+    const sp = state.shots[state.selectedIdx].source_path;
+    currentDir = sp.substring(0, sp.lastIndexOf('/'));
+  }
+  
+  window.open('/view-folder?path=' + encodeURIComponent(currentDir) + '&mode=select', 'MagoBrowser', 'width=800,height=600');
+}
+
+window.receiveSelectedOutput = function(selectedDir) {
+  const s = state.shots[state.selectedIdx];
+  const version = s ? s.version_name : 'output';
+  const fmt = state.format;
+  const ext = fmt === 'mov' ? 'mov' : `####.${fmt}`;
+  
+  const cleanDir = selectedDir.replace(/\\/g, '/');
+  document.getElementById('inp-output').value = `${cleanDir}/${version}.${ext}`;
+  updateOutputNameByFormat();
+};
+
+function updateOutputNameByFormat() {
+  const inp = document.getElementById('inp-output');
+  // ê²½ë¡œê°€ ?†ê±°??? íš¨?˜ì? ?Šìœ¼ë©??ë™ ê°±ì‹  ê±´ë„ˆ?€
+  if (!inp.value || inp.value === '.' || inp.value === '/') return;
+
+  const s = state.shots[state.selectedIdx];
+  const version = s ? s.version_name : 'output';
+  const fmt = state.format;
+  
+  let pathStr = inp.value.replace(/\\/g, '/');
+  const lastSlash = pathStr.lastIndexOf('/');
+  let dir = lastSlash !== -1 ? pathStr.substring(0, lastSlash) : pathStr;
+  
+  const ext = fmt === 'mov' ? 'mov' : `####.${fmt}`;
+  inp.value = `${dir}/${version}.${ext}`;
+}
+
+function buildFormatTabs() {
+  const tabRow = document.getElementById('fmt-tabs');
+  const optArea = document.getElementById('fmt-options-area');
+  Object.entries(formatDefs).forEach(([fmtId, def], idx) => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'fmt-tab' + (idx === 0 ? ' active' : '');
+    tab.textContent = def.label;
+    tab.dataset.fmt = fmtId;
+    tab.onclick = () => switchFormat(fmtId);
+    tabRow.appendChild(tab);
+
+    const block = document.createElement('div');
+    block.className = 'fmt-opts' + (idx === 0 ? ' on' : '');
+    block.id = 'fmt-' + fmtId;
+    const codecLabel = (fmtId === 'mov') ? 'Codec' : 'Compression';
+    const codecHtml = `<div><label class="fl">${codecLabel}</label>
+      <select id="sel-codec-${fmtId}" onchange="updateFmtSummary()">
+      ${def.codecs.map(c => `<option value="${c.id}" ${c.id===def.default_codec?'selected':''}>${c.label}</option>`).join('')}
+      </select></div>`;
+    const bitBtns = def.bitdepths.map(b =>
+      `<button type="button" class="bit-btn${b.id===def.default_bitdepth?' active':''}" data-fmt="${fmtId}" data-bit="${b.id}" onclick="selectBit('${fmtId}','${b.id}',this)">${b.label}</button>`).join('');
+    block.innerHTML = codecHtml + `<div><label class="fl">Bit Depth</label>
+      <div class="bit-group" id="bits-${fmtId}">${bitBtns}</div>
+      <input type="hidden" id="sel-bits-${fmtId}" value="${def.default_bitdepth}"></div>`;
+    optArea.appendChild(block);
+  });
+  state.format = Object.keys(formatDefs)[0];
+  updateFmtSummary();
+}
+
+function selectBit(fmtId, bitId, el) {
+  document.querySelectorAll('#bits-' + fmtId + ' .bit-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('sel-bits-' + fmtId).value = bitId;
+  updateFmtSummary();
+}
+
+function switchFormat(fmtId) {
+  state.format = fmtId;
+  document.querySelectorAll('.fmt-tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === fmtId));
+  document.querySelectorAll('.fmt-opts').forEach(b => b.classList.toggle('on', b.id === 'fmt-' + fmtId));
+  updateFmtSummary();
+  updateOutputNameByFormat();
+}
+
+function updateFmtSummary() {
+  const fmt = state.format;
+  const def = formatDefs[fmt];
+  const codecEl = document.getElementById('sel-codec-' + fmt);
+  const bitEl = document.getElementById('sel-bits-' + fmt);
+  if (!def || !codecEl || !bitEl) return;
+  const codecLabel = def.codecs.find(c => c.id === codecEl.value)?.label || codecEl.value;
+  const bitLabel = def.bitdepths.find(b => b.id === bitEl.value)?.label || bitEl.value;
+  document.getElementById('fmt-summary-val').textContent = `${def.label} Â· ${codecLabel} Â· ${bitLabel}`;
+}
+
+function buildColorspaceSelects() {
+  const core = [
+    'ACES - ACES2065-1',
+    'ACES - ACEScg',
+    'ACES - ACEScct',
+    'Input - ARRI - V3 LogC (EI800) - Wide Gamut',
+    'Input - ARRI - V4 LogC (EI800) - Wide Gamut',
+    'Output - Rec.709',
+    'Output - sRGB',
+    'Utility - sRGB - Texture'
+  ];
+  
+  ['sel-cs-in', 'sel-cs-out'].forEach((selId, idx) => {
+    const sel = document.getElementById(selId);
+    const currentVal = sel.value;
+    sel.innerHTML = '';
+    
+    // Favorite ê·¸ë£¹???ì„±
+    const gCore = document.createElement('optgroup');
+    gCore.label = 'Favorite';
+    core.forEach(cs => {
+      const opt = document.createElement('option');
+      opt.value = cs; opt.textContent = cs;
+      gCore.appendChild(opt);
+    });
+    sel.appendChild(gCore);
+
+    // ê¹”ë”???ìŠ¤???¼ì¸ êµ¬ë¶„??ëª…ì‹œ
+    const separator = document.createElement('option');
+    separator.disabled = true;
+    separator.textContent = '?€?€?€?€?€?€?€?€?€?€?€?€?€?€';
+    sel.appendChild(separator);
+
+    // All Colorspaces ê·¸ë£¹???ì„±
+    const gAll = document.createElement('optgroup');
+    gAll.label = 'All Colorspaces';
+    colorspaces.forEach(cs => {
+      if (!core.includes(cs)) {
+        const opt = document.createElement('option');
+        opt.value = cs; opt.textContent = cs;
+        gAll.appendChild(opt);
+      }
+    });
+    sel.appendChild(gAll);
+
+    if (currentVal) sel.value = currentVal;
+  });
+}
+
+function autoMatchColorspace(selId, targetCs) {
+  if (!targetCs) return;
+
+  const sel = document.getElementById(selId);
+  const options = Array.from(sel.options);
+  
+  const simplify = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const targetSimple = simplify(targetCs);
+
+  let matched = options.find(o => o.value === targetCs);
+  // 2?œìœ„: ?¨ìˆœ??ë¹„êµ ?¼ì¹˜
+  if (!matched) {
+    matched = options.find(o => simplify(o.value) === targetSimple);
+  }
+  // 3?œìœ„: ?¬í•¨ ê´€ê³?
+  if (!matched) {
+    matched = options.find(o => simplify(o.value).includes(targetSimple) || targetSimple.includes(simplify(o.value)));
+  }
+
+  if (matched) {
+    sel.value = matched.value;
+  }
+}
+
+function toggleSingleFrameMode() {
+  const isSingle = document.getElementById('chk-single-frame').checked;
+  const lblIn = document.getElementById('lbl-frame-in');
+  const colOut = document.getElementById('col-frame-out');
+  
+  if (isSingle) {
+    lblIn.textContent = 'Frame';
+    colOut.style.visibility = 'hidden';
+    document.getElementById('inp-frame-out').value = document.getElementById('inp-frame-in').value;
+  } else {
+    lblIn.textContent = 'Frame In';
+    colOut.style.visibility = 'visible';
+    setFullRange();
+  }
+}
+
+function setSingleFrame() {
+
+  // ê¸°ì¡´ ë²„íŠ¼ ê¸°ëŠ¥ ? ì??˜ë˜ ì²´í¬ë°•ìŠ¤ ?íƒœ?€ ?°ë™
+  const fin = document.getElementById('inp-frame-in').value || '1001';
+  document.getElementById('inp-frame-out').value = fin;
+  // ë§Œì•½ ì²´í¬ë°•ìŠ¤ê°€ ?ˆë˜???ˆë‹¤ë©?ì²´í¬?´ì£¼ê¸?(?¬ìš©???˜ë„ ë°˜ì˜)
+  if (!document.getElementById('chk-single-frame').checked) {
+    document.getElementById('chk-single-frame').checked = true;
+    toggleSingleFrameMode();
+  }
+}
+function setFullRange() {
+  if (state.shots.length) {
+    const s = state.shots[state.selectedIdx];
+    document.getElementById('inp-frame-in').value = s.frame_in;
+    document.getElementById('inp-frame-out').value = s.frame_out;
+  }
+}
+
+async function handleRun() {
+  const btn = document.getElementById('run-btn');
+  if (state.abortCtrl) {
+    log('ì¤‘ë‹¨ ?”ì²­??, 'warn');
+    state.abortCtrl.abort();
+    return;
+  }
+  const fmt = state.format;
+  const codec = document.getElementById('sel-codec-' + fmt)?.value || '';
+  const bitdepth = document.getElementById('sel-bits-' + fmt)?.value || '';
+  const csIn = document.getElementById('sel-cs-in').value;
+  const csOut = document.getElementById('sel-cs-out').value;
+  const frameIn = document.getElementById('inp-frame-in').value || '1001';
+  const frameOut = document.getElementById('inp-frame-out').value || frameIn;
+  const shotName = document.getElementById('inp-shot').value || 'Manual';
+  const srcPath = document.getElementById('inp-source').value || '';
+  const outPath = document.getElementById('inp-output').value || '';
+  const taskId = 't_' + Date.now();
+  const frames = frameIn === frameOut ? frameIn : `${frameIn}-${frameOut}`;
+
+  document.getElementById('log-area').innerHTML = '';
+  document.getElementById('console-status').textContent = '??RUNNING';
+  btn.textContent = 'CANCEL PROCESS';
+  btn.classList.add('cancel');
+  state.abortCtrl = new AbortController();
+  
+  // ?„ë¡œê·¸ë ˆ??ë°?ì´ˆê¸°??
+  const progContainer = document.getElementById('progress-container');
+  const progBar = document.getElementById('progress-bar');
+  const progText = document.getElementById('progress-text');
+  const progPercent = document.getElementById('progress-percent');
+  
+  progContainer.style.display = 'flex';
+  progBar.style.width = '0%';
+  progBar.style.background = 'linear-gradient(90deg, var(--accent), var(--accent2))';
+  progText.textContent = 'RENDERING...';
+  progText.style.color = 'var(--dim)';
+  progPercent.textContent = '0%';
+
+  log(`?œì‘ ??${shotName} | ${frames} | ${fmt.toUpperCase()}`, 'info');
+  log(`ì»¬ëŸ¬: ${csIn} ??${csOut}`, 'info');
+
+  btn.textContent = 'CANCEL';
+  // Slate Data
+  const useSlate = document.getElementById('use_slate').checked;
+  const enableCustomVer = document.getElementById('enable_custom_slate_ver').checked;
+  const customSlateVer = document.getElementById('slate_version').value;
+  
+  const s = state.shots[state.selectedIdx];
+  const projectCode = s && s.project ? s.project.toLowerCase() : "";
+
+  try {
+    const res = await fetch('/api/render', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        shot_name: shotName, frames, format: fmt, codec, bitdepth,
+        colorspace_in: csIn, colorspace: csOut,
+        source_path: srcPath, output_path: outPath, task_id: taskId,
+        // Slate payload
+        use_slate: useSlate,
+        project: projectCode,
+        slate_version: (enableCustomVer && customSlateVer) ? customSlateVer : null
+      }),
+      signal: state.abortCtrl.signal
+    });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      decoder.decode(value, { stream: true }).split('\n\n').forEach(chunk => {
+        if (!chunk.startsWith('data: ')) return;
+        try {
+          const { log: msg } = JSON.parse(chunk.slice(6));
+          const l = msg.toLowerCase();
+          
+          if (msg.startsWith('[PROGRESS]')) {
+            const percent = msg.split(' ')[1];
+            progBar.style.width = percent + '%';
+            progPercent.textContent = percent + '%';
+          }
+          else if (msg === '[ERROR_STATE]') {
+            progBar.style.background = 'var(--error)';
+            progText.textContent = 'ERROR OCCURRED';
+            progText.style.color = 'var(--error)';
+            // ?ëŸ¬ ??ê°•ì œ ?°ê²° ì¢…ë£Œ ? ë„
+            if (state.abortCtrl) state.abortCtrl.abort();
+          }
+          else if (l.includes('[success]')) {
+            log(msg, 'success');
+            progBar.style.width = '100%';
+            progBar.style.background = 'var(--success)';
+            progText.textContent = 'RENDER COMPLETE';
+            progText.style.color = 'var(--success)';
+            progPercent.textContent = '100%';
+          }
+          else if (l.includes('[failed]') || l.includes('[error]')) {
+            log(msg, 'error');
+            progBar.style.background = 'var(--error)';
+            progText.textContent = 'RENDER FAILED';
+            progText.style.color = 'var(--error)';
+          }
+          else if (l.includes('[system]')) log(msg, 'warn');
+          else if (l.includes('[cmd]')) log(msg, 'cmd');
+          else log(msg);
+        } catch (_) {}
+      });
+    }
+  } catch (err) {
+    log(err.name === 'AbortError' ? 'ì·¨ì†Œ??' : ('?¤ë¥˜: ' + err.message), 'error');
+  } finally {
+    state.abortCtrl = null;
+    btn.textContent = 'RENDER';
+    btn.classList.remove('cancel');
+    document.getElementById('console-status').textContent = 'IDLE';
+  }
+}
+
+function log(msg, type = '') {
+  const area = document.getElementById('log-area');
+  const div = document.createElement('div');
+  div.textContent = (type === 'dim' ? '' : '> ') + msg;
+  if (type) div.className = 'log-' + type;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+</script>
+</body>
+</html>
