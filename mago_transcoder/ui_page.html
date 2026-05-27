@@ -50,7 +50,7 @@ input[type=text]:focus, select:focus { border-color: var(--accent); outline: non
 
 .tab-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .fmt-tab { background: #EFEFE9; border: 1px solid var(--border); color: var(--dim); padding: 6px 16px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
-.fmt-tab.active { background: var(--accent); border-color: var(--accent); color: #FFF; }
+.fmt-tab.active { background: #C0392B; border-color: #C0392B; color: #FFF; }
 .fmt-opts { display: none; flex-direction: column; gap: 12px; }
 .fmt-opts.on { display: flex; }
 
@@ -94,8 +94,8 @@ select option { color: #000; font-weight: normal; }
     <div class="logo">
       <div class="logo-icon">M</div>
       <div>
-        <div style="font-size:15px;font-weight:800;color:var(--text)">MAGO TRANSCODER</div>
-        <div style="font-size:10px;color:var(--dim)">SHOTGRID AMI · NUKE</div>
+        <div style="font-size:15px;font-weight:800;color:var(--text)">MVER RENDER</div>
+        <div style="font-size:10px;color:var(--dim)">MAGO VERSION RENDER from shotgrid</div>
       </div>
     </div>
     <div class="status-pill">● READY</div>
@@ -112,7 +112,7 @@ select option { color: #000; font-weight: normal; }
 
   <div class="panels">
     <div class="panel">
-      <div class="sec-label">FRAME RANGE</div>
+      <div class="sec-label">SHOT & RANGE</div>
       
       <div class="fg2">
         <div>
@@ -128,7 +128,7 @@ select option { color: #000; font-weight: normal; }
       </div>
 
       <div class="full-width-group">
-        <label class="fl">Source Path <span class="accent-red">* read only source</span></label>
+        <label class="fl">Source Path</label>
         <input type="text" id="inp-source" placeholder="/path/####.exr">
       </div>
 
@@ -145,9 +145,8 @@ select option { color: #000; font-weight: normal; }
 
       <div class="full-width-group">
         <div style="display:flex; justify-content:space-between; align-items:center">
-          <label class="fl">Output Path <span class="accent-red">* check version padding</span></label>
+          <label class="fl" style="color: #C0392B;">Output Path</label>
           <div style="display:flex; gap:4px; margin-bottom:6px">
-            <button class="preset-btn" type="button" onclick="restoreTemplatePath()">↺ 템플릿 복구</button>
             <button class="preset-btn" type="button" onclick="browseFolder()">📂 찾아보기</button>
           </div>
         </div>

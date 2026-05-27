@@ -232,16 +232,20 @@ async def view_folder(path: str = Query(""), mode: str = Query("")) -> Any:
         parent_link = ""
     else:
         parent_url = f"/view-folder?path={urllib.parse.quote(parent_dir)}{'&mode='+mode if mode else ''}"
-        parent_link = f'<a href="{parent_url}" style="text-decoration:none;font-weight:bold;color:#3b82f6;display:inline-block;">[상위 폴더로 이동]</a>'
+        parent_link = f'<a href="{parent_url}" class="parent-link">⬆️ 상위 폴더</a>'
 
     safe_path_js = path.replace("\\", "\\\\")
     
-    # mode == "select" 일 때 표시할 최상단 선택 버튼 렌더링
-    select_btn_html = ""
+    # mode == "select" 일 때 표시할 하단 선택 바 렌더링
+    bottom_bar_html = ""
     if mode == "select":
-        select_btn_html = f"""
-        <div style="margin-bottom: 20px; padding: 12px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.4); border-radius: 8px; text-align: center;">
-            <button onclick="selectCurrentFolder()" style="background: #10b981; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">✅ 이 폴더를 아웃풋으로 선택</button>
+        bottom_bar_html = f"""
+        <div class="bottom-bar">
+            <div class="bottom-bar-path" title="{path}">선택 경로: {path}</div>
+            <div class="bottom-bar-actions">
+                <button class="btn-secondary" onclick="window.close()">취소</button>
+                <button class="btn-primary" onclick="selectCurrentFolder()">폴더 선택</button>
+            </div>
             <script>
                 function selectCurrentFolder() {{
                     if (window.opener && window.opener.receiveSelectedOutput) {{
@@ -260,19 +264,194 @@ async def view_folder(path: str = Query(""), mode: str = Query("")) -> Any:
         <head>
             <title>File Viewer: {path}</title>
             <style>
-                body {{ font-family: monospace; background: #0b0d11; color: #d1d5db; padding: 20px; }}
-                a {{ color: #60a5fa; text-decoration: none; display: block; padding: 4px 0; }}
-                a:hover {{ text-decoration: underline; color: #93c5fd; }}
-                .folder {{ font-weight: bold; color: #fcd34d; display: flex; align-items: center; gap: 6px; padding: 4px 0; }}
-                .file {{ color: #d1d5db; display: flex; align-items: center; gap: 6px; padding: 4px 0; }}
-                .action-row {{ margin-bottom: 20px; display: flex; gap: 16px; align-items: center; }}
-                .create-btn {{ background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.4); color: #93c5fd; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-family: monospace; }}
-                .create-btn:hover {{ background: rgba(59,130,246,0.2); }}
-                #new-folder-input {{ background: rgba(0,0,0,0.5); border: 1px solid #fcd34d; color: #fcd34d; padding: 2px 6px; font-family: monospace; outline: none; border-radius: 3px; }}
-                .focused-folder {{ background: rgba(59,130,246,0.2); outline: 1px solid #3b82f6; border-radius: 4px; }}
-                .context-menu {{ position: absolute; background: #1f2937; border: 1px solid #374151; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); padding: 4px 0; min-width: 180px; z-index: 1000; font-family: system-ui, sans-serif; font-size: 13px; }}
-                .context-menu-item {{ padding: 8px 16px; cursor: pointer; color: #d1d5db; display: flex; align-items: center; gap: 8px; }}
-                .context-menu-item:hover {{ background: #374151; color: #fff; }}
+                body {{
+                    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                    background: #f6f8fa;
+                    color: #24292f;
+                    padding: 20px;
+                    padding-bottom: 80px;
+                    margin: 0;
+                }}
+                h2 {{
+                    font-size: 16px;
+                    font-weight: 600;
+                    margin-top: 0;
+                    margin-bottom: 12px;
+                    color: #24292f;
+                    word-break: break-all;
+                }}
+                a {{
+                    color: #0969da;
+                    text-decoration: none;
+                    display: block;
+                }}
+                a:hover {{
+                    text-decoration: none;
+                }}
+                .folder, .file {{
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px 12px;
+                    text-decoration: none;
+                    border-bottom: 1px solid #f0f2f5;
+                    font-size: 13px;
+                    color: #24292f;
+                    transition: background 0.1s;
+                }}
+                .folder:last-child, .file:last-child {{
+                    border-bottom: none;
+                }}
+                .folder {{
+                    font-weight: 600;
+                }}
+                .folder span {{
+                    color: #0969da;
+                }}
+                .file span {{
+                    color: #24292f;
+                }}
+                .folder:hover, .file:hover {{
+                    background: #f3f4f6;
+                    text-decoration: none;
+                }}
+                .action-row {{
+                    margin-bottom: 16px;
+                    display: flex;
+                    gap: 12px;
+                    align-items: center;
+                }}
+                .create-btn {{
+                    background: #24292f;
+                    border: 1px solid #d0d7de;
+                    color: #ffffff;
+                    cursor: pointer;
+                    padding: 5px 12px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    font-weight: 500;
+                }}
+                .create-btn:hover {{
+                    background: #2f363d;
+                }}
+                .parent-link {{
+                    text-decoration: none;
+                    font-size: 12px;
+                    font-weight: bold;
+                    color: #0969da;
+                    background: #ffffff;
+                    border: 1px solid #d0d7de;
+                    padding: 5px 12px;
+                    border-radius: 6px;
+                    display: inline-flex;
+                    align-items: center;
+                }}
+                .parent-link:hover {{
+                    background: #f3f4f6;
+                }}
+                #new-folder-input {{
+                    background: #ffffff;
+                    border: 1px solid #0969da;
+                    color: #24292f;
+                    padding: 3px 6px;
+                    font-family: inherit;
+                    outline: none;
+                    border-radius: 4px;
+                    font-size: 13px;
+                    width: auto;
+                }}
+                .focused-folder {{
+                    background: #ddf4ff !important;
+                    outline: 1px solid #0969da;
+                }}
+                .context-menu {{
+                    position: absolute;
+                    background: #ffffff;
+                    border: 1px solid #d0d7de;
+                    border-radius: 6px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                    padding: 4px 0;
+                    min-width: 180px;
+                    z-index: 1000;
+                    font-family: system-ui, sans-serif;
+                    font-size: 13px;
+                }}
+                .context-menu-item {{
+                    padding: 8px 16px;
+                    cursor: pointer;
+                    color: #24292f;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }}
+                .context-menu-item:hover {{
+                    background: #f3f4f6;
+                    color: #24292f;
+                }}
+                
+                /* Bottom Dialog Bar */
+                .bottom-bar {{
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: #ffffff;
+                    border-top: 1px solid #d0d7de;
+                    padding: 12px 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+                    z-index: 100;
+                }}
+                .bottom-bar-path {{
+                    font-size: 12px;
+                    color: #57606a;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    max-width: 60%;
+                    font-family: monospace;
+                    font-weight: 500;
+                }}
+                .bottom-bar-actions {{
+                    display: flex;
+                    gap: 8px;
+                }}
+                .btn-primary {{
+                    background: #0969da;
+                    color: #ffffff;
+                    border: 1px solid rgba(27,31,36,0.15);
+                    padding: 6px 16px;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    font-size: 13px;
+                    cursor: pointer;
+                }}
+                .btn-primary:hover {{
+                    background: #0c5dc5;
+                }}
+                .btn-secondary {{
+                    background: #ffffff;
+                    color: #24292f;
+                    border: 1px solid #d0d7de;
+                    padding: 6px 16px;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    font-size: 13px;
+                    cursor: pointer;
+                }}
+                .btn-secondary:hover {{
+                    background: #f3f4f6;
+                }}
+                #item-list {{
+                    background: #ffffff;
+                    border: 1px solid #d0d7de;
+                    border-radius: 6px;
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                }}
             </style>
             <script>
                 let selectedItem = null;
@@ -524,7 +703,6 @@ async def view_folder(path: str = Query(""), mode: str = Query("")) -> Any:
             </script>
         </head>
         <body>
-            {select_btn_html}
             <h2>📁 {path}</h2>
             <div class="action-row">
                 {parent_link}
@@ -550,7 +728,7 @@ async def view_folder(path: str = Query(""), mode: str = Query("")) -> Any:
         """
         html_content += f'<a href="{item_url}" class="{cls}" {events}>{icon}<span>{item}</span></a>\n'
         
-    html_content += "</div></body></html>"
+    html_content += f"</div>{bottom_bar_html}</body></html>"
     return HTMLResponse(html_content)
 
 
