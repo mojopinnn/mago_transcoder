@@ -1,4 +1,4 @@
-# MAGO TRANSCODER
+# MVER_RENDER
 
 ShotGrid **Action Menu (AMI)** → **FastAPI** → **Nuke** (`-t` / `nuke_converter.py`) → **SSE** 콘솔 로그.
 
